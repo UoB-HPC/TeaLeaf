@@ -237,7 +237,7 @@ void run_send_recv_halo(Chunk *chunk, Settings &settings,                       
 #ifdef USE_HOSTTASK
   if (settings.staging_buffer) {
     chunk->ext->device_queue->submit([&](sycl::handler &h) {
-      auto snd_buffer_acc = src_send_buffer->get_host_access(h, sycl::read_only);
+      auto snd_buffer_acc = src_send_buffer->get_host_access(h, sycl::read_write);
       auto rcv_buffer_acc = src_recv_buffer->get_host_access(h, sycl::write_only);
       h.host_task([=, &settings]() {
         send_recv_message(settings,                     //
