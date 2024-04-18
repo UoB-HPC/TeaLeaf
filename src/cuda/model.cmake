@@ -8,12 +8,16 @@ register_flag_required(CMAKE_CUDA_COMPILER
 
 # XXX we may want to drop this eventually and use CMAKE_CUDA_ARCHITECTURES directly
 register_flag_required(CUDA_ARCH
-        "Nvidia architecture, will be passed in via `-arch=` (e.g `sm_70`) for nvcc")
+        "Nvidia architecture, this will be append the compile line via `-arch=` (e.g `sm_70`) for nvcc or --cuda-arch for clang++")
+
+
+register_flag_optional(CUDA_CLANG_DRIVER
+        "Disable any nvcc-specific flags so that setting CMAKE_CUDA_COMPILER to clang++ can compile successfully"
+        "OFF")
 
 register_flag_optional(CUDA_EXTRA_FLAGS
-        "Additional CUDA flags passed to nvcc, this is appended after `CUDA_ARCH`"
+        "Additional CUDA flags passed to the CUDA compiler, this is appended after `CUDA_CXX_FLAGS`"
         "")
-
 
 register_flag_optional(MANAGED_ALLOC "Use UVM (cudaMallocManaged) instead of the device-only allocation (cudaMalloc)"
         "OFF")
@@ -31,11 +35,20 @@ macro(setup)
     endif ()
 
     set(CMAKE_CXX_STANDARD 17)
+
+    if (CUDA_CLANG_DRIVER)
+        if (CMAKE_VERSION VERSION_LESS "3.18.0")
+            message(FATAL_ERROR "Using clang driver for CUDA is only supported for CMake >= 3.18")
+        endif ()
+        set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -std=c++17 --cuda-gpu-arch=${CUDA_ARCH} ${CUDA_EXTRA_FLAGS}")
+    else ()
+        # add -forward-unknown-to-host-compiler for compatibility reasons
+        # add -std=c++17 manually as older CMake seems to omit this (source gets treated as C otherwise)
+        set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -std=c++17 -forward-unknown-to-host-compiler -extended-lambda -use_fast_math -restrict -arch=${CUDA_ARCH} ${CUDA_EXTRA_FLAGS}")
+    endif ()
+
     enable_language(CUDA)
 
-    # add -forward-unknown-to-host-compiler for compatibility reasons
-    # add -std=c++17 manually as older CMake seems to omit this (source gets treated as C otherwise)
-    set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -std=c++17 -forward-unknown-to-host-compiler -arch=${CUDA_ARCH} -use_fast_math -restrict -keep ${CUDA_EXTRA_FLAGS}")
 
     # CMake defaults to -O2 for CUDA at Release, let's wipe that and use the global RELEASE_FLAG
     # appended later
@@ -51,7 +64,6 @@ macro(setup)
 
     message(STATUS "NVCC flags: ${CMAKE_CUDA_FLAGS} ${CMAKE_CUDA_FLAGS_${BUILD_TYPE}}")
 endmacro()
-
 
 macro(setup_target NAME)
     # Treat everything as CUDA source
