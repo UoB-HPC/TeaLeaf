@@ -14,7 +14,7 @@ void initialise_ranks(Settings &settings) {
 void finalise_comms() { MPI_Finalize(); }
 
 // Sends a message out and receives a message in
-void send_recv_message(Settings &settings, double *send_buffer, double *recv_buffer, int buffer_len, int neighbour, int send_tag,
+void send_recv_message(Settings &settings, const double *send_buffer, double *recv_buffer, int buffer_len, int neighbour, int send_tag,
                        int recv_tag, MPI_Request *send_request, MPI_Request *recv_request) {
   START_PROFILING(settings.kernel_profile);
 
