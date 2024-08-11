@@ -246,6 +246,7 @@ register_model(hip USE_HIP ${MODEL_SRC})
 register_model(std-indices USE_STD ${MODEL_SRC})
 register_model(sycl-acc USE_SYCL_ACC ${MODEL_SRC})
 register_model(sycl-usm USE_SYCL_USM ${MODEL_SRC})
+register_model(tbb USE_TBB ${MODEL_SRC})
 
 if ("${MODEL}" STREQUAL omp-target)
     set(BIN_NAME omp-target-tealeaf)

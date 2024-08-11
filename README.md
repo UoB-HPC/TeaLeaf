@@ -26,12 +26,12 @@ particular order:
 - C++ Parallel STL (StdPar)
 - Kokkos >= 4
 - SYCL and SYCL 2020
+- TBB
 
 Planned:
 
 - OpenACC
 - RAJA
-- TBB
 - Thrust (via CUDA or HIP)
 
 ## Building
