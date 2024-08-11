@@ -35,8 +35,7 @@ public:
 };
 
 inline void check_errors(int line_num, const char *file) {
-  hipDeviceSynchronize();
-  if (auto result = hipGetLastError(); result != hipSuccess) {
+  if (auto result = hipDeviceSynchronize(); result != hipSuccess) {
     die(line_num, file, "Error in %s - return code %d (%s)\n", file, result, hipGetErrorName(result));
   }
 }

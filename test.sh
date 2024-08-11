@@ -2,7 +2,7 @@
 
 set -eu
 
-export NVHPC_DIR="/opt/nvidia/hpc_sdk/Linux_x86_64/23.5"
+export NVHPC_DIR="/opt/nvidia/hpc_sdk/Linux_x86_64/24.7"
 export CUDA_DIR="$NVHPC_DIR/cuda/"
 export PATH=$NVHPC_DIR/compilers/bin/:${PATH:-}
 export KOKKOS_DIR="/home/tom/Downloads/kokkos-4.0.01/"
@@ -27,7 +27,7 @@ declare -A enabled_models=(
   ["sycl-usm"]=true
 )
 
-function test() {
+function test_mpi() {
   if [[ "${enabled_models[$3]}" != true ]]; then
     echo "# Skipping model $3"
     return
@@ -70,18 +70,7 @@ function test_nompi() {
   build_$2/*-tealeaf --device "$1" --file "$PROBLEM" --profile true --staging-buffer auto
 }
 
-#export CCACHE_DISABLE=1
-#
-##test_nompi "0" cuda -DCXX_EXTRA_FLAGS="-Ofast" -DCMAKE_CUDA_COMPILER=nvcc -DCUDA_ARCH=sm_60
-#export HIPSYCL_TARGETS="omp.accelerated"
-##export HIPSYCL_TARGETS="cuda:sm_60"
-#test_nompi "0" std-indices -DCMAKE_CXX_COMPILER="/opt/hipsycl/56f7219/bin/syclcc" -DCXX_EXTRA_FLAGS="--opensycl-stdpar;--opensycl-stdpar-unconditional-offload" -DCXX_EXTRA_LIBRARIES=tbb  # -DCMAKE_CXX_STANDARD=17 -DUSE_TBB=ON
-#
-#exit 0
-
-
-
-(
+( 
   (
     :
     test_nompi "0" serial -DCXX_EXTRA_FLAGS="-Ofast" -DCMAKE_CXX_COMPILER=g++
@@ -115,15 +104,15 @@ function test_nompi() {
   )
   (
     :
-    test_nompi "0" cuda -DCXX_EXTRA_FLAGS="-Ofast" -DCMAKE_CUDA_COMPILER=nvcc -DCUDA_ARCH=sm_60
-    test_nompi "0" cuda -DMANAGED_ALLOC=ON -DCXX_EXTRA_FLAGS="-Ofast" -DCMAKE_CUDA_COMPILER=nvcc -DCUDA_ARCH=sm_60
-    test_nompi "0" cuda -DSYNC_ALL_KERNELS=ON -DCXX_EXTRA_FLAGS="-Ofast" -DCMAKE_CUDA_COMPILER=nvcc -DCUDA_ARCH=sm_60
+    test_nompi "0" cuda -DCXX_EXTRA_FLAGS="-O3" -DCMAKE_CUDA_COMPILER=nvcc -DCUDA_ARCH=sm_60
+    test_nompi "0" cuda -DMANAGED_ALLOC=ON -DCXX_EXTRA_FLAGS="-O3" -DCMAKE_CUDA_COMPILER=nvcc -DCUDA_ARCH=sm_60
+    test_nompi "0" cuda -DSYNC_ALL_KERNELS=ON -DCXX_EXTRA_FLAGS="-O3" -DCMAKE_CUDA_COMPILER=nvcc -DCUDA_ARCH=sm_60
   )
   (
     :
-    test_nompi "0" hip -DCXX_EXTRA_FLAGS="-O1" -DCMAKE_CXX_COMPILER=hipcc
-    test_nompi "0" hip -DMANAGED_ALLOC=ON -DCXX_EXTRA_FLAGS="-O1" -DCMAKE_CXX_COMPILER=hipcc # fails validation at > O1 lol
-    test_nompi "0" hip -DSYNC_ALL_KERNELS=ON -DCXX_EXTRA_FLAGS="-Ofast" -DCMAKE_CXX_COMPILER=hipcc
+    test_nompi "0" hip -DCXX_EXTRA_FLAGS="--offload-arch=gfx1036" -DCMAKE_CXX_COMPILER=hipcc
+    test_nompi "0" hip -DMANAGED_ALLOC=ON -DCXX_EXTRA_FLAGS="--offload-arch=gfx1036" -DCMAKE_CXX_COMPILER=hipcc
+    test_nompi "0" hip -DSYNC_ALL_KERNELS=ON -DCXX_EXTRA_FLAGS="--offload-arch=gfx1036" -DCMAKE_CXX_COMPILER=hipcc
   )
   (
     :
@@ -136,14 +125,14 @@ function test_nompi() {
     export HSA_OVERRIDE_GFX_VERSION=10.1.2 #  https://github.com/RadeonOpenCompute/ROCm/issues/1756#issuecomment-1160386571
     export HIPSYCL_TARGETS="hip:gfx1012"
     test_nompi "Radeon" sycl-acc -DSYCL_COMPILER=HIPSYCL -DSYCL_COMPILER_DIR="/opt/hipsycl/e7ec6ed" -DUSE_HOSTTASK=OFF
-    test_nompi "Radeon" sycl-usm -DSYCL_COMPILER=HIPSYCL -DSYCL_COMPILER_DIR="/opt/hipsycl/e7ec6ed" -DUSE_HOSTTASK=OFF  #?-DENABLE_PROFILING=ON
+    test_nompi "Radeon" sycl-usm -DSYCL_COMPILER=HIPSYCL -DSYCL_COMPILER_DIR="/opt/hipsycl/e7ec6ed" -DUSE_HOSTTASK=OFF #?-DENABLE_PROFILING=ON
   )
   (
     :
     set +eu
     module load mpi
-    source /opt/intel/oneapi/tbb/2021.10.0/env/vars.sh
-    source /opt/intel/oneapi/compiler/2023.2.0/env/vars.sh
+    source /opt/intel/oneapi/tbb/2021.13/env/vars.sh
+    source /opt/intel/oneapi/compiler/2024.2/env/vars.sh
     set -eu
     export DPCPP_CPU_NUM_CUS=1
     export DPCPP_CPU_SCHEDULE=static
@@ -156,115 +145,116 @@ function test_nompi() {
     :
     set +eu
     module load mpi
-    source /opt/intel/oneapi/tbb/2021.10.0/env/vars.sh
-    source /opt/intel/oneapi/compiler/2023.2.0/env/vars.sh --include-intel-llvm
+    source /opt/intel/oneapi/tbb/2021.13/env/vars.sh
+    source /opt/intel/oneapi/compiler/2024.2/env/vars.sh --include-intel-llvm
     set -eu
     cuda_sycl_flags="-fsycl-targets=nvptx64-nvidia-cuda;-Xsycl-target-backend;--cuda-gpu-arch=sm_60;--cuda-path=$CUDA_DIR"
     test_nompi "0" std-indices -DCMAKE_CXX_COMPILER=clang++ -DUSE_ONEDPL=DPCPP -DCXX_EXTRA_FLAGS="-fsycl;$cuda_sycl_flags"
-    test_nompi "NVIDIA" sycl-acc -DSYCL_COMPILER=ONEAPI-Clang -DUSE_HOSTTASK=ON -DSYCL_COMPILER_DIR=/opt/intel/oneapi/compiler/2023.1.0/linux/bin-llvm/ -DCXX_EXTRA_FLAGS="$cuda_sycl_flags" -DCXX_EXTRA_LINK_FLAGS="$cuda_sycl_flags"
-    test_nompi "NVIDIA" sycl-acc -DSYCL_COMPILER=ONEAPI-Clang -DUSE_HOSTTASK=OFF -DSYCL_COMPILER_DIR=/opt/intel/oneapi/compiler/2023.1.0/linux/bin-llvm/ -DCXX_EXTRA_FLAGS="$cuda_sycl_flags" -DCXX_EXTRA_LINK_FLAGS="$cuda_sycl_flags"
-    test_nompi "NVIDIA" sycl-usm -DSYCL_COMPILER=ONEAPI-Clang -DUSE_HOSTTASK=ON -DSYCL_COMPILER_DIR=/opt/intel/oneapi/compiler/2023.1.0/linux/bin-llvm/ -DCXX_EXTRA_FLAGS="$cuda_sycl_flags" -DCXX_EXTRA_LINK_FLAGS="$cuda_sycl_flags"
-    test_nompi "NVIDIA" sycl-usm -DSYCL_COMPILER=ONEAPI-Clang -DUSE_HOSTTASK=OFF -DSYCL_COMPILER_DIR=/opt/intel/oneapi/compiler/2023.1.0/linux/bin-llvm/ -DCXX_EXTRA_FLAGS="$cuda_sycl_flags" -DCXX_EXTRA_LINK_FLAGS="$cuda_sycl_flags"
+    test_nompi "NVIDIA" sycl-acc -DSYCL_COMPILER=ONEAPI-Clang -DUSE_HOSTTASK=ON -DSYCL_COMPILER_DIR=/opt/intel/oneapi/compiler/2024.2/linux/bin-llvm/ -DCXX_EXTRA_FLAGS="$cuda_sycl_flags" -DCXX_EXTRA_LINK_FLAGS="$cuda_sycl_flags"
+    test_nompi "NVIDIA" sycl-acc -DSYCL_COMPILER=ONEAPI-Clang -DUSE_HOSTTASK=OFF -DSYCL_COMPILER_DIR=/opt/intel/oneapi/compiler/2024.2/linux/bin-llvm/ -DCXX_EXTRA_FLAGS="$cuda_sycl_flags" -DCXX_EXTRA_LINK_FLAGS="$cuda_sycl_flags"
+    test_nompi "NVIDIA" sycl-usm -DSYCL_COMPILER=ONEAPI-Clang -DUSE_HOSTTASK=ON -DSYCL_COMPILER_DIR=/opt/intel/oneapi/compiler/2024.2/linux/bin-llvm/ -DCXX_EXTRA_FLAGS="$cuda_sycl_flags" -DCXX_EXTRA_LINK_FLAGS="$cuda_sycl_flags"
+    test_nompi "NVIDIA" sycl-usm -DSYCL_COMPILER=ONEAPI-Clang -DUSE_HOSTTASK=OFF -DSYCL_COMPILER_DIR=/opt/intel/oneapi/compiler/2024.2/linux/bin-llvm/ -DCXX_EXTRA_FLAGS="$cuda_sycl_flags" -DCXX_EXTRA_LINK_FLAGS="$cuda_sycl_flags"
 
     export LD_LIBRARY_PATH=/opt/rocm-5.4.3/lib:${LD_LIBRARY_PATH:-}
     hip_sycl_flags="-fsycl;-fsycl-targets=amdgcn-amd-amdhsa;-Xsycl-target-backend;--offload-arch=gfx1012"
     test_nompi "0" std-indices -DCMAKE_CXX_COMPILER=clang++ -DUSE_ONEDPL=DPCPP -DCXX_EXTRA_FLAGS="-fsycl;$hip_sycl_flags"
-    test_nompi "Radeon" sycl-acc -DSYCL_COMPILER=ONEAPI-Clang -DUSE_HOSTTASK=ON -DSYCL_COMPILER_DIR=/opt/intel/oneapi/compiler/2023.1.0/linux/bin-llvm/ -DCXX_EXTRA_FLAGS="$hip_sycl_flags" -DCXX_EXTRA_LINK_FLAGS="$hip_sycl_flags"
-    test_nompi "Radeon" sycl-acc -DSYCL_COMPILER=ONEAPI-Clang -DUSE_HOSTTASK=OFF -DSYCL_COMPILER_DIR=/opt/intel/oneapi/compiler/2023.1.0/linux/bin-llvm/ -DCXX_EXTRA_FLAGS="$hip_sycl_flags" -DCXX_EXTRA_LINK_FLAGS="$hip_sycl_flags"
-    test_nompi "Radeon" sycl-usm -DSYCL_COMPILER=ONEAPI-Clang -DUSE_HOSTTASK=ON -DSYCL_COMPILER_DIR=/opt/intel/oneapi/compiler/2023.1.0/linux/bin-llvm/ -DCXX_EXTRA_FLAGS="$hip_sycl_flags" -DCXX_EXTRA_LINK_FLAGS="$hip_sycl_flags"  #?-DENABLE_PROFILING=ON
-    test_nompi "Radeon" sycl-usm -DSYCL_COMPILER=ONEAPI-Clang -DUSE_HOSTTASK=OFF -DSYCL_COMPILER_DIR=/opt/intel/oneapi/compiler/2023.1.0/linux/bin-llvm/ -DCXX_EXTRA_FLAGS="$hip_sycl_flags" -DCXX_EXTRA_LINK_FLAGS="$hip_sycl_flags"  #?-DENABLE_PROFILING=ON
+    test_nompi "Radeon" sycl-acc -DSYCL_COMPILER=ONEAPI-Clang -DUSE_HOSTTASK=ON -DSYCL_COMPILER_DIR=/opt/intel/oneapi/compiler/2024.2/linux/bin-llvm/ -DCXX_EXTRA_FLAGS="$hip_sycl_flags" -DCXX_EXTRA_LINK_FLAGS="$hip_sycl_flags"
+    test_nompi "Radeon" sycl-acc -DSYCL_COMPILER=ONEAPI-Clang -DUSE_HOSTTASK=OFF -DSYCL_COMPILER_DIR=/opt/intel/oneapi/compiler/2024.2/linux/bin-llvm/ -DCXX_EXTRA_FLAGS="$hip_sycl_flags" -DCXX_EXTRA_LINK_FLAGS="$hip_sycl_flags"
+    test_nompi "Radeon" sycl-usm -DSYCL_COMPILER=ONEAPI-Clang -DUSE_HOSTTASK=ON -DSYCL_COMPILER_DIR=/opt/intel/oneapi/compiler/2024.2/linux/bin-llvm/ -DCXX_EXTRA_FLAGS="$hip_sycl_flags" -DCXX_EXTRA_LINK_FLAGS="$hip_sycl_flags"  #?-DENABLE_PROFILING=ON
+    test_nompi "Radeon" sycl-usm -DSYCL_COMPILER=ONEAPI-Clang -DUSE_HOSTTASK=OFF -DSYCL_COMPILER_DIR=/opt/intel/oneapi/compiler/2024.2/linux/bin-llvm/ -DCXX_EXTRA_FLAGS="$hip_sycl_flags" -DCXX_EXTRA_LINK_FLAGS="$hip_sycl_flags" #?-DENABLE_PROFILING=ON
   )
   wait
 )
 #exit 0
 (
+  source /etc/profile.d/modules.sh
   module load mpi
-  test $CPU_RANKS "0" serial -DCMAKE_CXX_COMPILER=g++
-  test $CPU_RANKS "0" serial -DCMAKE_CXX_COMPILER=clang++
+  test_mpi $CPU_RANKS "0" serial -DCMAKE_CXX_COMPILER=g++
+  test_mpi $CPU_RANKS "0" serial -DCMAKE_CXX_COMPILER=clang++
   (
     :
-    test $CPU_RANKS "0" std-indices -DCMAKE_CXX_COMPILER=g++ -DUSE_TBB=ON
-    test $CPU_RANKS "0" std-indices -DCMAKE_CXX_COMPILER=g++ -DUSE_ONEDPL=OPENMP
-    test $CPU_RANKS "0" std-indices -DCMAKE_CXX_COMPILER=clang++ -DUSE_TBB=ON
-    test $CPU_RANKS "0" std-indices -DCMAKE_CXX_COMPILER=clang++ -DUSE_ONEDPL=OPENMP
-    test $CPU_RANKS "0" std-indices -DCMAKE_CXX_COMPILER=nvc++ -DCXX_EXTRA_FLAGS="-Ofast;-stdpar;-target=multicore"
-    test $GPU_RANKS "0" std-indices -DCMAKE_CXX_COMPILER=nvc++ -DCXX_EXTRA_FLAGS="-Ofast;-stdpar;-gpu=cc61;--restrict"
+    test_mpi $CPU_RANKS "0" std-indices -DCMAKE_CXX_COMPILER=g++ -DUSE_TBB=ON
+    test_mpi $CPU_RANKS "0" std-indices -DCMAKE_CXX_COMPILER=g++ -DUSE_ONEDPL=OPENMP
+    test_mpi $CPU_RANKS "0" std-indices -DCMAKE_CXX_COMPILER=clang++ -DUSE_TBB=ON
+    test_mpi $CPU_RANKS "0" std-indices -DCMAKE_CXX_COMPILER=clang++ -DUSE_ONEDPL=OPENMP
+    test_mpi $CPU_RANKS "0" std-indices -DCMAKE_CXX_COMPILER=nvc++ -DCXX_EXTRA_FLAGS="-Ofast;-stdpar;-target=multicore"
+    test_mpi $GPU_RANKS "0" std-indices -DCMAKE_CXX_COMPILER=nvc++ -DCXX_EXTRA_FLAGS="-Ofast;-stdpar;-gpu=cc61;--restrict"
   )
   (
     :
-    test $CPU_RANKS "0" omp -DCMAKE_CXX_COMPILER=g++
-    test $CPU_RANKS "0" omp -DCMAKE_CXX_COMPILER=clang++
+    test_mpi $CPU_RANKS "0" omp -DCMAKE_CXX_COMPILER=g++
+    test_mpi $CPU_RANKS "0" omp -DCMAKE_CXX_COMPILER=clang++
   )
   (
     :
-    test $GPU_RANKS "0" omp-target -DCMAKE_CXX_COMPILER=clang++ -DOFFLOAD=NVIDIA:sm_60 -DCXX_EXTRA_FLAGS="-Ofast;--cuda-path=$CUDA_DIR"
-    test $GPU_RANKS "0" omp-target -DCMAKE_CXX_COMPILER=nvc++ -DCXX_EXTRA_FLAGS="-Ofast" -DOFFLOAD=ON -DOFFLOAD_FLAGS="-mp;-gpu=cc60"
+    test_mpi $GPU_RANKS "0" omp-target -DCMAKE_CXX_COMPILER=clang++ -DOFFLOAD=NVIDIA:sm_60 -DCXX_EXTRA_FLAGS="-Ofast;--cuda-path=$CUDA_DIR"
+    test_mpi $GPU_RANKS "0" omp-target -DCMAKE_CXX_COMPILER=nvc++ -DCXX_EXTRA_FLAGS="-Ofast" -DOFFLOAD=ON -DOFFLOAD_FLAGS="-mp;-gpu=cc60"
   )
   (
     :
-    test $CPU_RANKS "0" kokkos -DCMAKE_CXX_COMPILER=g++ -DKOKKOS_IN_TREE="$KOKKOS_DIR" -DKokkos_ENABLE_OPENMP=ON -DKokkos_ARCH_ZEN3=ON
-    test $CPU_RANKS "0" kokkos -DCMAKE_CXX_COMPILER=clang++ -DKOKKOS_IN_TREE="$KOKKOS_DIR" -DKokkos_ENABLE_OPENMP=ON -DKokkos_ARCH_ZEN3=ON
-    test $GPU_RANKS "0" kokkos -DCMAKE_CXX_COMPILER=$KOKKOS_DIR/bin/nvcc_wrapper -DKOKKOS_IN_TREE="$KOKKOS_DIR" -DKokkos_ENABLE_CUDA=ON -DKokkos_ARCH_PASCAL61=ON
-    test $GPU_RANKS "0" kokkos -DCMAKE_CXX_COMPILER=nvc++ -DKOKKOS_IN_TREE="$KOKKOS_DIR" -DKokkos_ENABLE_CUDA=ON -DKokkos_ARCH_PASCAL61=ON
+    test_mpi $CPU_RANKS "0" kokkos -DCMAKE_CXX_COMPILER=g++ -DKOKKOS_IN_TREE="$KOKKOS_DIR" -DKokkos_ENABLE_OPENMP=ON -DKokkos_ARCH_ZEN3=ON
+    test_mpi $CPU_RANKS "0" kokkos -DCMAKE_CXX_COMPILER=clang++ -DKOKKOS_IN_TREE="$KOKKOS_DIR" -DKokkos_ENABLE_OPENMP=ON -DKokkos_ARCH_ZEN3=ON
+    test_mpi $GPU_RANKS "0" kokkos -DCMAKE_CXX_COMPILER=$KOKKOS_DIR/bin/nvcc_wrapper -DKOKKOS_IN_TREE="$KOKKOS_DIR" -DKokkos_ENABLE_CUDA=ON -DKokkos_ARCH_PASCAL61=ON
+    test_mpi $GPU_RANKS "0" kokkos -DCMAKE_CXX_COMPILER=nvc++ -DKOKKOS_IN_TREE="$KOKKOS_DIR" -DKokkos_ENABLE_CUDA=ON -DKokkos_ARCH_PASCAL61=ON
   )
   (
     :
-    test $GPU_RANKS "0" cuda -DMANAGED_ALLOC=ON -DCXX_EXTRA_FLAGS="-Ofast" -DCMAKE_CUDA_COMPILER=nvcc -DCUDA_ARCH=sm_60
-    test $GPU_RANKS "0" cuda -DMANAGED_ALLOC=ON -DSYNC_ALL_KERNELS=ON -DCXX_EXTRA_FLAGS="-Ofast" -DCMAKE_CUDA_COMPILER=nvcc -DCUDA_ARCH=sm_60
+    test_mpi $GPU_RANKS "0" cuda -DMANAGED_ALLOC=ON -DCXX_EXTRA_FLAGS="-O3" -DCMAKE_CUDA_COMPILER=nvcc -DCUDA_ARCH=sm_60
+    test_mpi $GPU_RANKS "0" cuda -DMANAGED_ALLOC=ON -DSYNC_ALL_KERNELS=ON -DCXX_EXTRA_FLAGS="-O3" -DCMAKE_CUDA_COMPILER=nvcc -DCUDA_ARCH=sm_60
   )
   (
     :
-    test $GPU_RANKS "0" hip -DMANAGED_ALLOC=ON -DCXX_EXTRA_FLAGS="-O1" -DCMAKE_CXX_COMPILER=hipcc # fails validation at > O1 lol
-    test $GPU_RANKS "0" hip -DMANAGED_ALLOC=ON -DSYNC_ALL_KERNELS=ON -DCXX_EXTRA_FLAGS="-O1" -DCMAKE_CXX_COMPILER=hipcc
+    test_mpi $GPU_RANKS "0" hip -DMANAGED_ALLOC=ON -DCXX_EXTRA_FLAGS="-O3" -DCMAKE_CXX_COMPILER=hipcc # fails validation at > O1 lol
+    test_mpi $GPU_RANKS "0" hip -DMANAGED_ALLOC=ON -DSYNC_ALL_KERNELS=ON -DCXX_EXTRA_FLAGS="-O3" -DCMAKE_CXX_COMPILER=hipcc
   )
   (
     :
     set +eu
     module load mpi
-    source /opt/intel/oneapi/tbb/2021.10.0/env/vars.sh
-    source /opt/intel/oneapi/compiler/2023.2.0/env/vars.sh
+    source /opt/intel/oneapi/tbb/2021.13/env/vars.sh
+    source /opt/intel/oneapi/compiler/2024.2/env/vars.sh
     set -eu
     export DPCPP_CPU_NUM_CUS=1
     export DPCPP_CPU_SCHEDULE=static
-    test $CPU_RANKS "Ryzen" sycl-acc -DSYCL_COMPILER=ONEAPI-ICPX -DUSE_HOSTTASK=ON
-    test $CPU_RANKS "Ryzen" sycl-acc -DSYCL_COMPILER=ONEAPI-ICPX -DUSE_HOSTTASK=OFF
-    test $CPU_RANKS "Ryzen" sycl-usm -DSYCL_COMPILER=ONEAPI-ICPX -DUSE_HOSTTASK=ON
-    test $CPU_RANKS "Ryzen" sycl-usm -DSYCL_COMPILER=ONEAPI-ICPX -DUSE_HOSTTASK=OFF
+    test_mpi $CPU_RANKS "Ryzen" sycl-acc -DSYCL_COMPILER=ONEAPI-ICPX -DUSE_HOSTTASK=ON
+    test_mpi $CPU_RANKS "Ryzen" sycl-acc -DSYCL_COMPILER=ONEAPI-ICPX -DUSE_HOSTTASK=OFF
+    test_mpi $CPU_RANKS "Ryzen" sycl-usm -DSYCL_COMPILER=ONEAPI-ICPX -DUSE_HOSTTASK=ON
+    test_mpi $CPU_RANKS "Ryzen" sycl-usm -DSYCL_COMPILER=ONEAPI-ICPX -DUSE_HOSTTASK=OFF
   )
   (
     :
     export HIPSYCL_TARGETS="omp.library-only"
-    test $CPU_RANKS "OpenMP" sycl-acc -DSYCL_COMPILER=HIPSYCL -DSYCL_COMPILER_DIR="/opt/hipsycl/e7ec6ed" -DUSE_HOSTTASK=OFF
-    test $CPU_RANKS "OpenMP" sycl-usm -DSYCL_COMPILER=HIPSYCL -DSYCL_COMPILER_DIR="/opt/hipsycl/e7ec6ed" -DUSE_HOSTTASK=OFF
+    test_mpi $CPU_RANKS "OpenMP" sycl-acc -DSYCL_COMPILER=HIPSYCL -DSYCL_COMPILER_DIR="/opt/hipsycl/e7ec6ed" -DUSE_HOSTTASK=OFF
+    test_mpi $CPU_RANKS "OpenMP" sycl-usm -DSYCL_COMPILER=HIPSYCL -DSYCL_COMPILER_DIR="/opt/hipsycl/e7ec6ed" -DUSE_HOSTTASK=OFF
     export HIPSYCL_TARGETS="cuda:sm_60"
-    test $GPU_RANKS "NVIDIA" sycl-acc -DSYCL_COMPILER=HIPSYCL -DSYCL_COMPILER_DIR="/opt/hipsycl/e7ec6ed" -DUSE_HOSTTASK=OFF
-    test $GPU_RANKS "NVIDIA" sycl-usm -DSYCL_COMPILER=HIPSYCL -DSYCL_COMPILER_DIR="/opt/hipsycl/e7ec6ed" -DUSE_HOSTTASK=OFF
+    test_mpi $GPU_RANKS "NVIDIA" sycl-acc -DSYCL_COMPILER=HIPSYCL -DSYCL_COMPILER_DIR="/opt/hipsycl/e7ec6ed" -DUSE_HOSTTASK=OFF
+    test_mpi $GPU_RANKS "NVIDIA" sycl-usm -DSYCL_COMPILER=HIPSYCL -DSYCL_COMPILER_DIR="/opt/hipsycl/e7ec6ed" -DUSE_HOSTTASK=OFF
     export HSA_OVERRIDE_GFX_VERSION=10.1.2 #  https://github.com/RadeonOpenCompute/ROCm/issues/1756#issuecomment-1160386571
     export HIPSYCL_TARGETS="hip:gfx1012"
-    test $GPU_RANKS "Radeon" sycl-acc -DSYCL_COMPILER=HIPSYCL -DSYCL_COMPILER_DIR="/opt/hipsycl/e7ec6ed" -DUSE_HOSTTASK=OFF
-    test $GPU_RANKS "Radeon" sycl-usm -DSYCL_COMPILER=HIPSYCL -DSYCL_COMPILER_DIR="/opt/hipsycl/e7ec6ed" -DUSE_HOSTTASK=OFF  #?-DENABLE_PROFILING=ON
+    test_mpi $GPU_RANKS "Radeon" sycl-acc -DSYCL_COMPILER=HIPSYCL -DSYCL_COMPILER_DIR="/opt/hipsycl/e7ec6ed" -DUSE_HOSTTASK=OFF
+    test_mpi $GPU_RANKS "Radeon" sycl-usm -DSYCL_COMPILER=HIPSYCL -DSYCL_COMPILER_DIR="/opt/hipsycl/e7ec6ed" -DUSE_HOSTTASK=OFF #?-DENABLE_PROFILING=ON
   )
   (
     :
     set +eu
     module load mpi
-    source /opt/intel/oneapi/tbb/2021.10.0/env/vars.sh
-    source /opt/intel/oneapi/compiler/2023.2.0/env/vars.sh --include-intel-llvm
+    source /opt/intel/oneapi/tbb/2021.13/env/vars.sh
+    source /opt/intel/oneapi/compiler/2024.2/env/vars.sh --include-intel-llvm
     set -eu
     cuda_sycl_flags="-fsycl-targets=nvptx64-nvidia-cuda;-Xsycl-target-backend;--cuda-gpu-arch=sm_60;--cuda-path=$CUDA_DIR"
-    test $GPU_RANKS "0" std-indices -DCMAKE_CXX_COMPILER=clang++ -DUSE_ONEDPL=DPCPP -DCXX_EXTRA_FLAGS="-fsycl;$cuda_sycl_flags"
-    test $GPU_RANKS "NVIDIA" sycl-acc -DSYCL_COMPILER=ONEAPI-Clang -DUSE_HOSTTASK=ON -DSYCL_COMPILER_DIR=/opt/intel/oneapi/compiler/2023.1.0/linux/bin-llvm/ -DCXX_EXTRA_FLAGS="$cuda_sycl_flags" -DCXX_EXTRA_LINK_FLAGS="$cuda_sycl_flags"
-    test $GPU_RANKS "NVIDIA" sycl-acc -DSYCL_COMPILER=ONEAPI-Clang -DUSE_HOSTTASK=OFF -DSYCL_COMPILER_DIR=/opt/intel/oneapi/compiler/2023.1.0/linux/bin-llvm/ -DCXX_EXTRA_FLAGS="$cuda_sycl_flags" -DCXX_EXTRA_LINK_FLAGS="$cuda_sycl_flags"
-    test $GPU_RANKS "NVIDIA" sycl-usm -DSYCL_COMPILER=ONEAPI-Clang -DUSE_HOSTTASK=ON -DSYCL_COMPILER_DIR=/opt/intel/oneapi/compiler/2023.1.0/linux/bin-llvm/ -DCXX_EXTRA_FLAGS="$cuda_sycl_flags" -DCXX_EXTRA_LINK_FLAGS="$cuda_sycl_flags"
-    test $GPU_RANKS "NVIDIA" sycl-usm -DSYCL_COMPILER=ONEAPI-Clang -DUSE_HOSTTASK=OFF -DSYCL_COMPILER_DIR=/opt/intel/oneapi/compiler/2023.1.0/linux/bin-llvm/ -DCXX_EXTRA_FLAGS="$cuda_sycl_flags" -DCXX_EXTRA_LINK_FLAGS="$cuda_sycl_flags"
+    test_mpi $GPU_RANKS "0" std-indices -DCMAKE_CXX_COMPILER=clang++ -DUSE_ONEDPL=DPCPP -DCXX_EXTRA_FLAGS="-fsycl;$cuda_sycl_flags"
+    test_mpi $GPU_RANKS "NVIDIA" sycl-acc -DSYCL_COMPILER=ONEAPI-Clang -DUSE_HOSTTASK=ON -DSYCL_COMPILER_DIR=/opt/intel/oneapi/compiler/2024.2/linux/bin-llvm/ -DCXX_EXTRA_FLAGS="$cuda_sycl_flags" -DCXX_EXTRA_LINK_FLAGS="$cuda_sycl_flags"
+    test_mpi $GPU_RANKS "NVIDIA" sycl-acc -DSYCL_COMPILER=ONEAPI-Clang -DUSE_HOSTTASK=OFF -DSYCL_COMPILER_DIR=/opt/intel/oneapi/compiler/2024.2/linux/bin-llvm/ -DCXX_EXTRA_FLAGS="$cuda_sycl_flags" -DCXX_EXTRA_LINK_FLAGS="$cuda_sycl_flags"
+    test_mpi $GPU_RANKS "NVIDIA" sycl-usm -DSYCL_COMPILER=ONEAPI-Clang -DUSE_HOSTTASK=ON -DSYCL_COMPILER_DIR=/opt/intel/oneapi/compiler/2024.2/linux/bin-llvm/ -DCXX_EXTRA_FLAGS="$cuda_sycl_flags" -DCXX_EXTRA_LINK_FLAGS="$cuda_sycl_flags"
+    test_mpi $GPU_RANKS "NVIDIA" sycl-usm -DSYCL_COMPILER=ONEAPI-Clang -DUSE_HOSTTASK=OFF -DSYCL_COMPILER_DIR=/opt/intel/oneapi/compiler/2024.2/linux/bin-llvm/ -DCXX_EXTRA_FLAGS="$cuda_sycl_flags" -DCXX_EXTRA_LINK_FLAGS="$cuda_sycl_flags"
 
     export LD_LIBRARY_PATH=/opt/rocm-5.4.3/lib:${LD_LIBRARY_PATH:-}
     hip_sycl_flags="-fsycl;-fsycl-targets=amdgcn-amd-amdhsa;-Xsycl-target-backend;--offload-arch=gfx1012"
-    test $GPU_RANKS "0" std-indices -DCMAKE_CXX_COMPILER=clang++ -DUSE_ONEDPL=DPCPP -DCXX_EXTRA_FLAGS="-fsycl;$hip_sycl_flags"
-    test $GPU_RANKS "Radeon" sycl-acc -DSYCL_COMPILER=ONEAPI-Clang -DUSE_HOSTTASK=ON -DSYCL_COMPILER_DIR=/opt/intel/oneapi/compiler/2023.1.0/linux/bin-llvm/ -DCXX_EXTRA_FLAGS="$hip_sycl_flags" -DCXX_EXTRA_LINK_FLAGS="$hip_sycl_flags"
-    test $GPU_RANKS "Radeon" sycl-acc -DSYCL_COMPILER=ONEAPI-Clang -DUSE_HOSTTASK=OFF -DSYCL_COMPILER_DIR=/opt/intel/oneapi/compiler/2023.1.0/linux/bin-llvm/ -DCXX_EXTRA_FLAGS="$hip_sycl_flags" -DCXX_EXTRA_LINK_FLAGS="$hip_sycl_flags"
-    test $GPU_RANKS "Radeon" sycl-usm -DSYCL_COMPILER=ONEAPI-Clang -DUSE_HOSTTASK=ON -DSYCL_COMPILER_DIR=/opt/intel/oneapi/compiler/2023.1.0/linux/bin-llvm/ -DCXX_EXTRA_FLAGS="$hip_sycl_flags" -DCXX_EXTRA_LINK_FLAGS="$hip_sycl_flags"  #?-DENABLE_PROFILING=ON
-    test $GPU_RANKS "Radeon" sycl-usm -DSYCL_COMPILER=ONEAPI-Clang -DUSE_HOSTTASK=OFF -DSYCL_COMPILER_DIR=/opt/intel/oneapi/compiler/2023.1.0/linux/bin-llvm/ -DCXX_EXTRA_FLAGS="$hip_sycl_flags" -DCXX_EXTRA_LINK_FLAGS="$hip_sycl_flags"  #?-DENABLE_PROFILING=ON
+    test_mpi $GPU_RANKS "0" std-indices -DCMAKE_CXX_COMPILER=clang++ -DUSE_ONEDPL=DPCPP -DCXX_EXTRA_FLAGS="-fsycl;$hip_sycl_flags"
+    test_mpi $GPU_RANKS "Radeon" sycl-acc -DSYCL_COMPILER=ONEAPI-Clang -DUSE_HOSTTASK=ON -DSYCL_COMPILER_DIR=/opt/intel/oneapi/compiler/2024.2/linux/bin-llvm/ -DCXX_EXTRA_FLAGS="$hip_sycl_flags" -DCXX_EXTRA_LINK_FLAGS="$hip_sycl_flags"
+    test_mpi $GPU_RANKS "Radeon" sycl-acc -DSYCL_COMPILER=ONEAPI-Clang -DUSE_HOSTTASK=OFF -DSYCL_COMPILER_DIR=/opt/intel/oneapi/compiler/2024.2/linux/bin-llvm/ -DCXX_EXTRA_FLAGS="$hip_sycl_flags" -DCXX_EXTRA_LINK_FLAGS="$hip_sycl_flags"
+    test_mpi $GPU_RANKS "Radeon" sycl-usm -DSYCL_COMPILER=ONEAPI-Clang -DUSE_HOSTTASK=ON -DSYCL_COMPILER_DIR=/opt/intel/oneapi/compiler/2024.2/linux/bin-llvm/ -DCXX_EXTRA_FLAGS="$hip_sycl_flags" -DCXX_EXTRA_LINK_FLAGS="$hip_sycl_flags"  #?-DENABLE_PROFILING=ON
+    test_mpi $GPU_RANKS "Radeon" sycl-usm -DSYCL_COMPILER=ONEAPI-Clang -DUSE_HOSTTASK=OFF -DSYCL_COMPILER_DIR=/opt/intel/oneapi/compiler/2024.2/linux/bin-llvm/ -DCXX_EXTRA_FLAGS="$hip_sycl_flags" -DCXX_EXTRA_LINK_FLAGS="$hip_sycl_flags" #?-DENABLE_PROFILING=ON
   )
   wait
 )
@@ -273,49 +263,49 @@ function test_nompi() {
 
 ### CUDA-aware MPI ###
 (
-  export MPI_HOME=/opt/nvidia/hpc_sdk/Linux_x86_64/23.5/comm_libs/openmpi/openmpi-3.1.5/
-  export PATH="/opt/nvidia/hpc_sdk/Linux_x86_64/23.5/comm_libs/openmpi/openmpi-3.1.5/bin/:${PATH:-}"
+  export MPI_HOME=/opt/nvidia/hpc_sdk/Linux_x86_64/24.7/comm_libs/openmpi/openmpi-3.1.5/
+  export PATH="/opt/nvidia/hpc_sdk/Linux_x86_64/24.7/comm_libs/openmpi/openmpi-3.1.5/bin/:${PATH:-}"
   (
     :
-    test $GPU_RANKS "0" std-indices -DCMAKE_CXX_COMPILER=nvc++ -DCXX_EXTRA_FLAGS="-Ofast;-stdpar;-gpu=cc61;--restrict"
-    test $GPU_RANKS "0" omp-target -DCMAKE_CXX_COMPILER=clang++ -DOFFLOAD=NVIDIA:sm_60 -DCXX_EXTRA_FLAGS="-Ofast;--cuda-path=$CUDA_DIR"
-    test $GPU_RANKS "0" omp-target -DCMAKE_CXX_COMPILER=nvc++ -DCXX_EXTRA_FLAGS="-Ofast" -DOFFLOAD=ON -DOFFLOAD_FLAGS="-mp;-gpu=cc60"
-    test $GPU_RANKS "0" kokkos -DCMAKE_CXX_COMPILER=$KOKKOS_DIR/bin/nvcc_wrapper -DKOKKOS_IN_TREE="$KOKKOS_DIR" -DKokkos_ENABLE_CUDA=ON -DKokkos_ARCH_PASCAL61=ON
-    test $GPU_RANKS "0" kokkos -DCMAKE_CXX_COMPILER=nvc++ -DKOKKOS_IN_TREE="$KOKKOS_DIR" -DKokkos_ENABLE_CUDA=ON -DKokkos_ARCH_PASCAL61=ON
-    test $GPU_RANKS "0" cuda -DCXX_EXTRA_FLAGS="-Ofast" -DCMAKE_CUDA_COMPILER=nvcc -DCUDA_ARCH=sm_60
+    test_mpi $GPU_RANKS "0" std-indices -DCMAKE_CXX_COMPILER=nvc++ -DCXX_EXTRA_FLAGS="-Ofast;-stdpar;-gpu=cc61;--restrict"
+    test_mpi $GPU_RANKS "0" omp-target -DCMAKE_CXX_COMPILER=clang++ -DOFFLOAD=NVIDIA:sm_60 -DCXX_EXTRA_FLAGS="-Ofast;--cuda-path=$CUDA_DIR"
+    test_mpi $GPU_RANKS "0" omp-target -DCMAKE_CXX_COMPILER=nvc++ -DCXX_EXTRA_FLAGS="-Ofast" -DOFFLOAD=ON -DOFFLOAD_FLAGS="-mp;-gpu=cc60"
+    test_mpi $GPU_RANKS "0" kokkos -DCMAKE_CXX_COMPILER=$KOKKOS_DIR/bin/nvcc_wrapper -DKOKKOS_IN_TREE="$KOKKOS_DIR" -DKokkos_ENABLE_CUDA=ON -DKokkos_ARCH_PASCAL61=ON
+    test_mpi $GPU_RANKS "0" kokkos -DCMAKE_CXX_COMPILER=nvc++ -DKOKKOS_IN_TREE="$KOKKOS_DIR" -DKokkos_ENABLE_CUDA=ON -DKokkos_ARCH_PASCAL61=ON
+    test_mpi $GPU_RANKS "0" cuda -DCXX_EXTRA_FLAGS="-Ofast" -DCMAKE_CUDA_COMPILER=nvcc -DCUDA_ARCH=sm_60
 
-    #    test $GPU_RANKS "0" hip  -DCXX_EXTRA_FLAGS="-Ofast" -DCMAKE_CXX_COMPILER=/usr/lib/aomp_17.0-1/bin/hipcc # doesn't work with NVHPC'S OpenMPI, segfaults at runtime
+    #    test_mpi $GPU_RANKS "0" hip  -DCXX_EXTRA_FLAGS="-Ofast" -DCMAKE_CXX_COMPILER=/usr/lib/aomp_17.0-1/bin/hipcc # doesn't work with NVHPC'S OpenMPI, segfaults at runtime
 
   )
   (
     :
     export HIPSYCL_TARGETS="cuda:sm_60"
-    test $GPU_RANKS "NVIDIA" sycl-acc -DSYCL_COMPILER=HIPSYCL -DSYCL_COMPILER_DIR="/opt/hipsycl/e7ec6ed" -DUSE_HOSTTASK=OFF
-    test $GPU_RANKS "NVIDIA" sycl-usm -DSYCL_COMPILER=HIPSYCL -DSYCL_COMPILER_DIR="/opt/hipsycl/e7ec6ed" -DUSE_HOSTTASK=OFF
+    test_mpi $GPU_RANKS "NVIDIA" sycl-acc -DSYCL_COMPILER=HIPSYCL -DSYCL_COMPILER_DIR="/opt/hipsycl/e7ec6ed" -DUSE_HOSTTASK=OFF
+    test_mpi $GPU_RANKS "NVIDIA" sycl-usm -DSYCL_COMPILER=HIPSYCL -DSYCL_COMPILER_DIR="/opt/hipsycl/e7ec6ed" -DUSE_HOSTTASK=OFF
     export HSA_OVERRIDE_GFX_VERSION=10.1.2 #  https://github.com/RadeonOpenCompute/ROCm/issues/1756#issuecomment-1160386571
     export HIPSYCL_TARGETS="hip:gfx1012"
-    test $GPU_RANKS "Radeon" sycl-acc -DSYCL_COMPILER=HIPSYCL -DSYCL_COMPILER_DIR="/opt/hipsycl/e7ec6ed" -DUSE_HOSTTASK=OFF
-    test $GPU_RANKS "Radeon" sycl-usm -DSYCL_COMPILER=HIPSYCL -DSYCL_COMPILER_DIR="/opt/hipsycl/e7ec6ed" -DUSE_HOSTTASK=OFF  #?-DENABLE_PROFILING=ON
+    test_mpi $GPU_RANKS "Radeon" sycl-acc -DSYCL_COMPILER=HIPSYCL -DSYCL_COMPILER_DIR="/opt/hipsycl/e7ec6ed" -DUSE_HOSTTASK=OFF
+    test_mpi $GPU_RANKS "Radeon" sycl-usm -DSYCL_COMPILER=HIPSYCL -DSYCL_COMPILER_DIR="/opt/hipsycl/e7ec6ed" -DUSE_HOSTTASK=OFF #?-DENABLE_PROFILING=ON
   )
-    exit 0
+  exit 0
   (
     :
     set +eu
-    source /opt/intel/oneapi/tbb/2021.10.0/env/vars.sh
-    source /opt/intel/oneapi/compiler/2023.2.0/env/vars.sh --include-intel-llvm
+    source /opt/intel/oneapi/tbb/2021.13/env/vars.sh
+    source /opt/intel/oneapi/compiler/2024.2/env/vars.sh --include-intel-llvm
     set -eu
     cuda_sycl_flags="-fsycl-targets=nvptx64-nvidia-cuda;-Xsycl-target-backend;--cuda-gpu-arch=sm_60;--cuda-path=$CUDA_DIR"
-    test $GPU_RANKS "0" std-indices -DCMAKE_CXX_COMPILER=clang++ -DUSE_ONEDPL=DPCPP -DCXX_EXTRA_FLAGS="-fsycl;$cuda_sycl_flags"
+    test_mpi $GPU_RANKS "0" std-indices -DCMAKE_CXX_COMPILER=clang++ -DUSE_ONEDPL=DPCPP -DCXX_EXTRA_FLAGS="-fsycl;$cuda_sycl_flags"
 
-    test $GPU_RANKS "NVIDIA" sycl-acc -DSYCL_COMPILER=ONEAPI-Clang -DUSE_HOSTTASK=ON -DSYCL_COMPILER_DIR=/opt/intel/oneapi/compiler/2023.1.0/linux/bin-llvm/ -DCXX_EXTRA_FLAGS="$cuda_sycl_flags" -DCXX_EXTRA_LINK_FLAGS="$cuda_sycl_flags"
-    test $GPU_RANKS "NVIDIA" sycl-usm -DSYCL_COMPILER=ONEAPI-Clang -DUSE_HOSTTASK=ON -DSYCL_COMPILER_DIR=/opt/intel/oneapi/compiler/2023.1.0/linux/bin-llvm/ -DCXX_EXTRA_FLAGS="$cuda_sycl_flags" -DCXX_EXTRA_LINK_FLAGS="$cuda_sycl_flags"
+    test_mpi $GPU_RANKS "NVIDIA" sycl-acc -DSYCL_COMPILER=ONEAPI-Clang -DUSE_HOSTTASK=ON -DSYCL_COMPILER_DIR=/opt/intel/oneapi/compiler/2024.2/linux/bin-llvm/ -DCXX_EXTRA_FLAGS="$cuda_sycl_flags" -DCXX_EXTRA_LINK_FLAGS="$cuda_sycl_flags"
+    test_mpi $GPU_RANKS "NVIDIA" sycl-usm -DSYCL_COMPILER=ONEAPI-Clang -DUSE_HOSTTASK=ON -DSYCL_COMPILER_DIR=/opt/intel/oneapi/compiler/2024.2/linux/bin-llvm/ -DCXX_EXTRA_FLAGS="$cuda_sycl_flags" -DCXX_EXTRA_LINK_FLAGS="$cuda_sycl_flags"
 
     export LD_LIBRARY_PATH=/opt/rocm-5.4.3/lib:${LD_LIBRARY_PATH:-}
     hip_sycl_flags="-fsycl;-fsycl-targets=amdgcn-amd-amdhsa;-Xsycl-target-backend;--offload-arch=gfx1012"
-    test $GPU_RANKS "0" std-indices -DCMAKE_CXX_COMPILER=clang++ -DUSE_ONEDPL=DPCPP -DCXX_EXTRA_FLAGS="-fsycl;$hip_sycl_flags;-O1" # again, needs -O1
+    test_mpi $GPU_RANKS "0" std-indices -DCMAKE_CXX_COMPILER=clang++ -DUSE_ONEDPL=DPCPP -DCXX_EXTRA_FLAGS="-fsycl;$hip_sycl_flags;-O1" # again, needs -O1
 
-    test $GPU_RANKS "Radeon" sycl-acc -DSYCL_COMPILER=ONEAPI-Clang -DUSE_HOSTTASK=ON  -DSYCL_COMPILER_DIR=/opt/intel/oneapi/compiler/2023.1.0/linux/bin-llvm/ -DCXX_EXTRA_FLAGS="$hip_sycl_flags" -DCXX_EXTRA_LINK_FLAGS="$hip_sycl_flags"
-    test $GPU_RANKS "Radeon" sycl-usm -DSYCL_COMPILER=ONEAPI-Clang -DUSE_HOSTTASK=ON -DSYCL_COMPILER_DIR=/opt/intel/oneapi/compiler/2023.1.0/linux/bin-llvm/ -DCXX_EXTRA_FLAGS="$hip_sycl_flags" -DCXX_EXTRA_LINK_FLAGS="$hip_sycl_flags"  #?-DENABLE_PROFILING=ON
+    test_mpi $GPU_RANKS "Radeon" sycl-acc -DSYCL_COMPILER=ONEAPI-Clang -DUSE_HOSTTASK=ON -DSYCL_COMPILER_DIR=/opt/intel/oneapi/compiler/2024.2/linux/bin-llvm/ -DCXX_EXTRA_FLAGS="$hip_sycl_flags" -DCXX_EXTRA_LINK_FLAGS="$hip_sycl_flags"
+    test_mpi $GPU_RANKS "Radeon" sycl-usm -DSYCL_COMPILER=ONEAPI-Clang -DUSE_HOSTTASK=ON -DSYCL_COMPILER_DIR=/opt/intel/oneapi/compiler/2024.2/linux/bin-llvm/ -DCXX_EXTRA_FLAGS="$hip_sycl_flags" -DCXX_EXTRA_LINK_FLAGS="$hip_sycl_flags" #?-DENABLE_PROFILING=ON
   )
 
 )

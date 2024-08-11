@@ -13,12 +13,18 @@
 // Allocates, and zeroes and individual buffer
 void allocate_device_buffer(double **a, int x, int y) {
 #ifdef CLOVER_MANAGED_ALLOC
-  hipMallocManaged(a, x * y * sizeof(double));
+  if (auto result = hipMallocManaged(a, x * y * sizeof(double)); result != hipSuccess) {
+    die(__LINE__, __FILE__, "hipMallocManaged failed - return code %d (%s)\n", result, hipGetErrorName(result));
+  }
 #else
-  hipMalloc(a, x * y * sizeof(double));
+  if (auto result = hipMalloc(a, x * y * sizeof(double)); result != hipSuccess) {
+    die(__LINE__, __FILE__, "hipMalloc failed - return code %d (%s)\n", result, hipGetErrorName(result));
+  }
 #endif
   check_errors(__LINE__, __FILE__);
-  hipMemset(*a, 0, x * y * sizeof(double));
+  if (auto result = hipMemset(*a, 0, x * y * sizeof(double)); result != hipSuccess) {
+    die(__LINE__, __FILE__, "hipMemset failed - return code %d (%s)\n", result, hipGetErrorName(result));
+  }
   check_errors(__LINE__, __FILE__);
 }
 
@@ -38,7 +44,7 @@ void allocate_host_buffer(double **a, int x, int y) {
   }
 }
 
-void run_model_info(Settings &settings){
+void run_model_info(Settings &settings) {
   settings.model_name = "HIP";
 #ifdef CLOVER_MANAGED_ALLOC
   settings.model_kind = ModelKind::Unified;
@@ -49,11 +55,15 @@ void run_model_info(Settings &settings){
 
 void run_kernel_initialise(Chunk *chunk, Settings &settings, int comms_lr_len, int comms_tb_len) {
   int count;
-  hipGetDeviceCount(&count);
+  if (auto result = hipGetDeviceCount(&count); result != hipSuccess) {
+    die(__LINE__, __FILE__, "hipGetDeviceCount failed - return code %d (%s)\n", result, hipGetErrorName(result));
+  }
   std::vector<std::pair<int, std::string>> devices(count);
   for (int i = 0; i < count; ++i) {
     hipDeviceProp_t props{};
-    hipGetDeviceProperties(&props, i);
+    if (auto result = hipGetDeviceProperties(&props, i); result != hipSuccess) {
+      die(__LINE__, __FILE__, "hipGetDeviceProperties failed - return code %d (%s)\n", result, hipGetErrorName(result));
+    }
     devices[i] = {i, std::string(props.name)};
   }
 
@@ -91,7 +101,9 @@ void run_kernel_initialise(Chunk *chunk, Settings &settings, int comms_lr_len, i
   }
 
   hipDeviceProp_t properties{};
-  hipGetDeviceProperties(&properties, selected);
+  if (auto result = hipGetDeviceProperties(&properties, selected); result != hipSuccess) {
+    die(__LINE__, __FILE__, "hipGetDeviceProperties failed - return code %d (%s)\n", result, hipGetErrorName(result));
+  }
   print_and_log(settings, "# Rank %d using %s device id %d\n", settings.rank, properties.name, selected);
 
   chunk->staging_left_send = static_cast<double *>(std::malloc(sizeof(double) * comms_lr_len));

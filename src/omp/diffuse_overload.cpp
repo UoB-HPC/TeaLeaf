@@ -3,7 +3,7 @@
   #include "application.h"
   #include "drivers.h"
 
-void solve(Chunk *chunks, Settings &settings, int tt, double *wallclock_prev);
+void solve(Chunk *chunks, Settings &settings, int tt, const double *wallclock_prev);
 
 // An implementation specific overload of the main timestep loop
 bool diffuse_overload(Chunk *chunks, Settings &settings) {

@@ -5,7 +5,7 @@
 using namespace cl::sycl;
 
 // Initialises Sd
-void ppcg_init(const int x, const int y, const int halo_depth, const double theta, SyclBuffer &sdBuff, SyclBuffer &rBuff,
+void ppcg_init(const int x, const int y, const size_t halo_depth, const double theta, SyclBuffer &sdBuff, SyclBuffer &rBuff,
                queue &device_queue) {
   device_queue.submit([&](handler &h) {
     auto sd = sdBuff.get_access<access::mode::discard_write>(h);
@@ -24,7 +24,7 @@ void ppcg_init(const int x, const int y, const int halo_depth, const double thet
 }
 
 // Calculates U and R
-void ppcg_calc_ur(const int x, const int y, const int halo_depth, SyclBuffer &sdBuff, SyclBuffer &rBuff, SyclBuffer &uBuff,
+void ppcg_calc_ur(const int x, const int y, const size_t halo_depth, SyclBuffer &sdBuff, SyclBuffer &rBuff, SyclBuffer &uBuff,
                   SyclBuffer &kxBuff, SyclBuffer &kyBuff, queue &device_queue) {
   device_queue.submit([&](handler &h) {
     auto sd = sdBuff.get_access<access::mode::read>(h);
@@ -50,7 +50,7 @@ void ppcg_calc_ur(const int x, const int y, const int halo_depth, SyclBuffer &sd
 }
 
 // Calculates Sd
-void ppcg_calc_sd(const int x, const int y, const int halo_depth, const double theta, const double alpha, const double beta,
+void ppcg_calc_sd(const int x, const int y, const size_t halo_depth, const double theta, const double alpha, const double beta,
                   SyclBuffer &sdBuff, SyclBuffer &rBuff, queue &device_queue) {
   device_queue.submit([&](handler &h) {
     auto sd = sdBuff.get_access<access::mode::read_write>(h);

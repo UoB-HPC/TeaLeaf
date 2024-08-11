@@ -92,7 +92,7 @@ void set_chunk_state(const int x,              //
         density[idx[0]] = state.density;
       }
 
-      if (kk > 0 && kk < x - 1 && jj > 0 && jj < y - 1) {
+      if (kk > 0 && kk < size_t(x - 1) && jj > 0 && jj < size_t(y - 1)) {
         u[idx[0]] = energy0[idx[0]] * density[idx[0]];
       }
     });
@@ -117,10 +117,10 @@ void set_chunk_data_vertices(const int x,              //
     auto vertex_x = vertex_xBuff.get_access<access::mode::discard_write>(h);
     auto vertex_y = vertex_yBuff.get_access<access::mode::discard_write>(h);
     h.parallel_for<class set_chunk_data_vertices>(range<1>(tealeaf_MAX(x, y) + 1), [=](id<1> idx) {
-      if (idx[0] < x + 1) {
+      if (idx[0] < size_t(x + 1)) {
         vertex_x[idx[0]] = x_min + dx * static_cast<double>(static_cast<int>(idx[0]) - halo_depth);
       }
-      if (idx[0] < y + 1) {
+      if (idx[0] < size_t(y + 1)) {
         vertex_y[idx[0]] = y_min + dy * static_cast<double>(static_cast<int>(idx[0]) - halo_depth);
       }
     });
@@ -156,14 +156,14 @@ void set_chunk_data(const int x,              //
     auto cell_x = cell_xBuff.get_access<access::mode::write>(h);
 
     h.parallel_for<class set_chunk_data>(range<1>(x * y), [=](id<1> idx) {
-      if (idx[0] < x) {
+      if (idx[0] < size_t(x)) {
         cell_x[idx[0]] = 0.5 * (vertex_x[idx[0]] + vertex_x[idx[0] + 1]);
       }
-      if (idx[0] < y) {
+      if (idx[0] < size_t(y)) {
         cell_y[idx[0]] = 0.5 * (vertex_y[idx[0]] + vertex_y[idx[0] + 1]);
       }
 
-      if (idx[0] < x * y) {
+      if (idx[0] < size_t(x * y)) {
         volume[idx[0]] = dx * dy;
         x_area[idx[0]] = dy;
         y_area[idx[0]] = dx;
@@ -216,7 +216,7 @@ void run_kernel_initialise(Chunk *chunk, Settings &settings, int comms_lr_len, i
   if (devices.empty()) {
     die(__LINE__, __FILE__, "sycl::device::get_devices() returned 0 devices.");
   }
-  for (int i = 0; i < devices.size(); ++i) {
+  for (size_t i = 0; i < devices.size(); ++i) {
     print_and_log(settings, " %d: %s\n", i, devices[i].get_info<info::device::name>().c_str());
   }
 

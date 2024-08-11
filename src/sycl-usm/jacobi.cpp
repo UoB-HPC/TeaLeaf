@@ -5,29 +5,29 @@
 using namespace cl::sycl;
 
 // Initialises the Jacobi solver
-void jacobi_init(const int x,           //
-                 const int y,           //
-                 const int halo_depth,  //
-                 const int coefficient, //
-                 const double rx,       //
-                 const double ry,       //
-                 SyclBuffer &u,         //
-                 SyclBuffer &u0,        //
-                 SyclBuffer &density,   //
-                 SyclBuffer &energy,    //
-                 SyclBuffer &kx,        //
-                 SyclBuffer &ky,        //
+void jacobi_init(const int x,             //
+                 const int y,             //
+                 const size_t halo_depth, //
+                 const int coefficient,   //
+                 const double rx,         //
+                 const double ry,         //
+                 SyclBuffer &u,           //
+                 SyclBuffer &u0,          //
+                 SyclBuffer &density,     //
+                 SyclBuffer &energy,      //
+                 SyclBuffer &kx,          //
+                 SyclBuffer &ky,          //
                  queue &device_queue) {
   device_queue
       .submit([&](handler &h) {
         h.parallel_for<class jacobi_init>(range<1>(x * y), [=](id<1> idx) {
           const auto kk = idx[0] % x;
           const auto jj = idx[0] / x;
-          if (kk > 0 && kk < x - 1 && jj > 0 && jj < y - 1) {
+          if (kk > 0 && kk < size_t(x - 1) && jj > 0 && jj < size_t(y - 1)) {
             u0[idx[0]] = energy[idx[0]] * density[idx[0]];
             u[idx[0]] = u0[idx[0]];
           }
-          if (jj >= halo_depth && jj < y - 1 && kk >= halo_depth && kk < x - 1) {
+          if (jj >= halo_depth && jj < size_t(y - 1) && kk >= halo_depth && kk < size_t(x - 1)) {
             double densityCentre = (coefficient == CONDUCTIVITY) ? density[idx[0]] : 1.0 / density[idx[0]];
             double densityLeft = (coefficient == CONDUCTIVITY) ? density[idx[0] - 1] : 1.0 / density[idx[0] - 1];
             double densityDown = (coefficient == CONDUCTIVITY) ? density[idx[0] - x] : 1.0 / density[idx[0] - x];
@@ -44,16 +44,16 @@ void jacobi_init(const int x,           //
 }
 
 // Main Jacobi solver method.
-void jacobi_iterate(const int x,            //
-                    const int y,            //
-                    const int halo_depth,   //
-                    SyclBuffer &u,          //
-                    SyclBuffer &u0,         //
-                    SyclBuffer &r,          //
-                    SyclBuffer &kx,         //
-                    SyclBuffer &ky,         //
-                    SyclBuffer &error_temp, //
-                    double *error,          //
+void jacobi_iterate(const int x,             //
+                    const int y,             //
+                    const size_t halo_depth, //
+                    SyclBuffer &u,           //
+                    SyclBuffer &u0,          //
+                    SyclBuffer &r,           //
+                    SyclBuffer &kx,          //
+                    SyclBuffer &ky,          //
+                    SyclBuffer &error_temp,  //
+                    double *error,           //
                     queue &device_queue) {
   auto event = device_queue.submit([&](handler &h) {
     h.parallel_for<class jacobi_iterate>(                         //

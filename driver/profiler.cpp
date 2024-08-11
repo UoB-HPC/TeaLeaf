@@ -59,8 +59,8 @@ void profiler_end_timer(Profile *profile, const char *entry_name) {
 #ifdef __APPLE__
   double elapsed = (profile->profiler_end - profile->profiler_start) * 1.0E-9;
 #else
-  double elapsed = (profile->profiler_end.tv_sec - profile->profiler_start.tv_sec) +
-                   (profile->profiler_end.tv_nsec - profile->profiler_start.tv_nsec) * 1.0E-9;
+  double elapsed = double(profile->profiler_end.tv_sec - profile->profiler_start.tv_sec) +
+                   double(profile->profiler_end.tv_nsec - profile->profiler_start.tv_nsec) * 1.0E-9;
 #endif
 
   profile->profiler_entries[ii].time += elapsed;

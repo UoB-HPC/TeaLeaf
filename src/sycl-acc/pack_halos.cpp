@@ -11,7 +11,7 @@ using namespace cl::sycl;
 void pack_top(const int x,            //
               const int y,            //
               const int depth,        //
-              const int halo_depth,   //
+              const size_t halo_depth,   //
               SyclBuffer &fieldBuff,  //
               SyclBuffer &bufferBuff, //
               const int buffer_offset, queue &device_queue) {
@@ -32,7 +32,7 @@ void pack_top(const int x,            //
 void pack_bottom(const int x,            //
                  const int y,            //
                  const int depth,        //
-                 const int halo_depth,   //
+                 const size_t halo_depth,   //
                  SyclBuffer &fieldBuff,  //
                  SyclBuffer &bufferBuff, //
                  const int buffer_offset, queue &device_queue) {
@@ -53,7 +53,7 @@ void pack_bottom(const int x,            //
 void pack_left(const int x,            //
                const int y,            //
                const int depth,        //
-               const int halo_depth,   //
+               const size_t halo_depth,   //
                SyclBuffer &fieldBuff,  //
                SyclBuffer &bufferBuff, //
                const int buffer_offset, queue &device_queue) {
@@ -75,7 +75,7 @@ void pack_left(const int x,            //
 void pack_right(const int x,            //
                 const int y,            //
                 const int depth,        //
-                const int halo_depth,   //
+                const size_t halo_depth,   //
                 SyclBuffer &fieldBuff,  //
                 SyclBuffer &bufferBuff, //
                 const int buffer_offset, queue &device_queue) {
@@ -97,7 +97,7 @@ void pack_right(const int x,            //
 void unpack_top(const int x,            //
                 const int y,            //
                 const int depth,        //
-                const int halo_depth,   //
+                const size_t halo_depth,   //
                 SyclBuffer &fieldBuff,  //
                 SyclBuffer &bufferBuff, //
                 const int buffer_offset, queue &device_queue) {
@@ -118,7 +118,7 @@ void unpack_top(const int x,            //
 void unpack_bottom(const int x,            //
                    const int y,            //
                    const int depth,        //
-                   const int halo_depth,   //
+                   const size_t halo_depth,   //
                    SyclBuffer &fieldBuff,  //
                    SyclBuffer &bufferBuff, //
                    const int buffer_offset, queue &device_queue) {
@@ -139,7 +139,7 @@ void unpack_bottom(const int x,            //
 void unpack_left(const int x,            //
                  const int y,            //
                  const int depth,        //
-                 const int halo_depth,   //
+                 const size_t halo_depth,   //
                  SyclBuffer &fieldBuff,  //
                  SyclBuffer &bufferBuff, //
                  const int buffer_offset, queue &device_queue) {
@@ -161,7 +161,7 @@ void unpack_left(const int x,            //
 void unpack_right(const int x,            //
                   const int y,            //
                   const int depth,        //
-                  const int halo_depth,   //
+                  const size_t halo_depth,   //
                   SyclBuffer &fieldBuff,  //
                   SyclBuffer &bufferBuff, //
                   const int buffer_offset, queue &device_queue) {
@@ -264,8 +264,8 @@ void run_send_recv_halo(Chunk *chunk, Settings &settings,                       
   if (settings.staging_buffer) {
     chunk->ext->device_queue->wait_and_throw();
     send_recv_message(settings, //
-                      host_accessor<double, 1, access_mode::read_write>{*src_send_buffer, buffer_len}.get_pointer(),
-                      host_accessor<double, 1, access_mode::read_write>{*src_recv_buffer, buffer_len}.get_pointer(), buffer_len, neighbour,
+                      host_accessor<double, 1, access_mode::read_write>{*src_send_buffer, size_t(buffer_len)}.get_pointer(),
+                      host_accessor<double, 1, access_mode::read_write>{*src_recv_buffer, size_t(buffer_len)}.get_pointer(), size_t(buffer_len), neighbour,
                       send_tag, recv_tag, send_request, recv_request);
   } else {
   #if defined(__HIPSYCL__) || defined(__OPENSYCL__)
@@ -289,7 +289,7 @@ void run_send_recv_halo(Chunk *chunk, Settings &settings,                       
     send_recv_message(settings,                        //
                       src_send_buffer->get_pointer(d), //
                       src_recv_buffer->get_pointer(d), //
-                      buffer_len, neighbour, send_tag, recv_tag, send_request, recv_request);
+                      size_t(buffer_len), neighbour, send_tag, recv_tag, send_request, recv_request);
   #else
     throw std::logic_error("host_task is disabled and staging is also disabled, this won't work");
   #endif

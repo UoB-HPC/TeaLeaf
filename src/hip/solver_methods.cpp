@@ -77,7 +77,9 @@ void sum_reduce_buffer(double *buffer, double *result, int len) {
     sum_reduce<<<num_blocks, BLOCK_SIZE>>>(len, buffer);
     len = num_blocks;
   }
-  hipMemcpy(result, buffer, sizeof(double), CLOVER_MEMCPY_KIND_D2H);
+  if (auto r = hipMemcpy(result, buffer, sizeof(double), CLOVER_MEMCPY_KIND_D2H); r != hipSuccess) {
+    die(__LINE__, __FILE__, "hhipMemcpy failed - return code %d (%s)\n", r, hipGetErrorName(r));
+  }
   check_errors(__LINE__, __FILE__);
 }
 

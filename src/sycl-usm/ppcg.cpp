@@ -5,12 +5,12 @@
 using namespace cl::sycl;
 
 // Initialises Sd
-void ppcg_init(const int x,          //
-               const int y,          //
-               const int halo_depth, //
-               const double theta,   //
-               SyclBuffer &sd,       //
-               SyclBuffer &r,        //
+void ppcg_init(const int x,             //
+               const int y,             //
+               const size_t halo_depth, //
+               const double theta,      //
+               SyclBuffer &sd,          //
+               SyclBuffer &r,           //
                queue &device_queue) {
   device_queue.submit([&](handler &h) {
     h.parallel_for<class ppcg_init>(range<1>(x * y), [=](id<1> idx) {
@@ -27,14 +27,14 @@ void ppcg_init(const int x,          //
 }
 
 // Calculates U and R
-void ppcg_calc_ur(const int x,          //
-                  const int y,          //
-                  const int halo_depth, //
-                  SyclBuffer &sd,       //
-                  SyclBuffer &r,        //
-                  SyclBuffer &u,        //
-                  SyclBuffer &kx,       //
-                  SyclBuffer &ky,       //
+void ppcg_calc_ur(const int x,             //
+                  const int y,             //
+                  const size_t halo_depth, //
+                  SyclBuffer &sd,          //
+                  SyclBuffer &r,           //
+                  SyclBuffer &u,           //
+                  SyclBuffer &kx,          //
+                  SyclBuffer &ky,          //
                   queue &device_queue) {
   device_queue.submit([&](handler &h) {
     h.parallel_for<class ppcg_calc_ur>(range<1>(x * y), [=](id<1> idx) {
@@ -55,14 +55,14 @@ void ppcg_calc_ur(const int x,          //
 }
 
 // Calculates Sd
-void ppcg_calc_sd(const int x,          //
-                  const int y,          //
-                  const int halo_depth, //
-                  const double theta,   //
-                  const double alpha,   //
-                  const double beta,    //
-                  SyclBuffer &sd,       //
-                  SyclBuffer &r,        //
+void ppcg_calc_sd(const int x,             //
+                  const int y,             //
+                  const size_t halo_depth, //
+                  const double theta,      //
+                  const double alpha,      //
+                  const double beta,       //
+                  SyclBuffer &sd,          //
+                  SyclBuffer &r,           //
                   queue &device_queue) {
   device_queue.submit([&](handler &h) {
     h.parallel_for<class ppcg_calc_sd>(range<1>(x * y), [=](id<1> idx) {

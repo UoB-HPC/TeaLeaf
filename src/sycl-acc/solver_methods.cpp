@@ -16,7 +16,7 @@ struct Summary {
 
 void field_summary_func(const int x,             //
                         const int y,             //
-                        const int halo_depth,    //
+                        const size_t halo_depth,    //
                         SyclBuffer &uBuff,       //
                         SyclBuffer &densityBuff, //
                         SyclBuffer &energy0Buff, //
@@ -79,7 +79,7 @@ void store_energy(const int x,             //
 // Copies the inner u into u0.
 void copy_u(const int x,          //
             const int y,          //
-            const int halo_depth, //
+            const size_t halo_depth, //
             SyclBuffer &uBuff,    //
             SyclBuffer &u0Buff,   //
             queue &device_queue) {
@@ -102,7 +102,7 @@ void copy_u(const int x,          //
 // Calculates the residual r.
 void calculate_residual(const int x,          //
                         const int y,          //
-                        const int halo_depth, //
+                        const size_t halo_depth, //
                         SyclBuffer &uBuff,    //
                         SyclBuffer &u0Buff,   //
                         SyclBuffer &rBuff,    //
@@ -134,7 +134,7 @@ void calculate_residual(const int x,          //
 // Calculates the 2 norm of the provided buffer.
 void calculate_2norm(const int x,            //
                      const int y,            //
-                     const int halo_depth,   //
+                     const size_t halo_depth,   //
                      SyclBuffer &bufferBuff, //
                      double *norm,           //
                      queue &device_queue) {
@@ -160,7 +160,7 @@ void calculate_2norm(const int x,            //
 // Finalises the energy field.
 void finalise(const int x,             //
               const int y,             //
-              const int halo_depth,    //
+              const size_t halo_depth,    //
               SyclBuffer &uBuff,       //
               SyclBuffer &densityBuff, //
               SyclBuffer &energyBuff,  //
