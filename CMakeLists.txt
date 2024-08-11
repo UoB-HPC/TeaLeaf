@@ -69,11 +69,15 @@ option(USE_TBB "Enable oneTBB library for *supported* models. Enabling this on m
                 don't explicitly link against TBB is a no-op, see description of your selected
                 model on how this is used." OFF)
 
-if (USE_TBB)
+option(FETCH_ONETBB "Fetch (download) the oneTBB library for *supported* models. This uses CMake's
+                  FetchContent feature. Specify version by setting FETCH_ONETBB_VERSION" OFF)
+set(FETCH_ONETBB_VERSION "v2021.13.0" CACHE STRING "Specify version of oneTBB to use if FETCH_ONETBB is ON")
+
+if (FETCH_ONETBB)
     FetchContent_Declare(
             TBB
             GIT_REPOSITORY https://github.com/oneapi-src/oneTBB.git
-            GIT_TAG v2021.13.0
+            GIT_TAG "${FETCH_ONETBB_VERSION}"
     )
     # Don't fail builds on waring (TBB has -Wall while not being free of warnings from unused symbols...)
     set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
@@ -90,11 +94,15 @@ option(USE_ONEDPL "Enable oneDPL library for *supported* models. Enabling this o
                    don't explicitly link against DPL is a no-op, see description of your selected
                    model on how this is used." OFF)
 
-if (USE_ONEDPL)
+option(FETCH_ONEDPL "Fetch (download) the oneDPL library for *supported* models. This uses CMake's
+                  FetchContent feature. Specify version by setting FETCH_ONEDPL_VERSION" OFF)
+set(FETCH_ONEDPL_VERSION "oneDPL-2022.6.0-rc1" CACHE STRING "Specify version of oneTBB to use if FETCH_ONEDPL is ON")
+
+if (FETCH_ONEDPL)
     FetchContent_Declare(
             oneDPL
             GIT_REPOSITORY https://github.com/oneapi-src/oneDPL.git
-            GIT_TAG oneDPL-2022.6.0-rc1
+            GIT_TAG "${FETCH_ONEDPL_VERSION}"
     )
     string(TOLOWER ${USE_ONEDPL} ONEDPL_BACKEND)
     # XXX oneDPL looks for omp instead of openmp, which mismatches(!) with ONEDPL_PAR_BACKEND if using find_package
@@ -105,7 +113,7 @@ if (USE_ONEDPL)
     FetchContent_GetProperties(oneDPL)
     if (NOT oneDPL_POPULATED)
         FetchContent_Populate(oneDPL)
-        if (USE_TBB)
+        if (USE_ONETBB)
             macro(find_package NAME)
                 if ("${NAME}" STREQUAL "TBB")
                     message(STATUS "Discarding oneDPL's call to find_package(${NAME} ${ARGN})")

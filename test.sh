@@ -21,6 +21,7 @@ declare -A enabled_models=(
   ["omp-target"]=true
   ["kokkos"]=true
   ["cuda"]=true
+  ["tbb"]=true
   ["hip"]=true
   ["std-indices"]=true
   ["sycl-acc"]=true
@@ -78,10 +79,10 @@ function test_nompi() {
   )
   (
     :
-    test_nompi "0" std-indices -DCMAKE_CXX_COMPILER=g++ -DCXX_EXTRA_FLAGS="-Ofast" -DUSE_TBB=ON
-    test_nompi "0" std-indices -DCMAKE_CXX_COMPILER=g++ -DCXX_EXTRA_FLAGS="-Ofast" -DUSE_ONEDPL=OPENMP
-    test_nompi "0" std-indices -DCMAKE_CXX_COMPILER=clang++ -DCXX_EXTRA_FLAGS="-Ofast" -DUSE_TBB=ON
-    test_nompi "0" std-indices -DCMAKE_CXX_COMPILER=clang++ -DCXX_EXTRA_FLAGS="-Ofast" -DUSE_ONEDPL=OPENMP
+    test_nompi "0" std-indices -DCMAKE_CXX_COMPILER=g++ -DCXX_EXTRA_FLAGS="-Ofast" -DUSE_ONETBB=ON -DFETCH_ONETBB=ON -DCXX_EXTRA_LIBRARIES=tbb # use system one
+    test_nompi "0" std-indices -DCMAKE_CXX_COMPILER=g++ -DCXX_EXTRA_FLAGS="-Ofast" -DUSE_ONEDPL=OPENMP -DFETCH_ONEDPL=ON
+    test_nompi "0" std-indices -DCMAKE_CXX_COMPILER=clang++ -DCXX_EXTRA_FLAGS="-Ofast" -DUSE_ONETBB=ON -DFETCH_ONETBB=ON -DCXX_EXTRA_LIBRARIES=tbb # use system one
+    test_nompi "0" std-indices -DCMAKE_CXX_COMPILER=clang++ -DCXX_EXTRA_FLAGS="-Ofast" -DUSE_ONEDPL=OPENMP -DFETCH_ONEDPL=ON
     test_nompi "0" std-indices -DCMAKE_CXX_COMPILER=nvc++ -DCXX_EXTRA_FLAGS="-Ofast;-stdpar;-target=multicore"
     test_nompi "0" std-indices -DCMAKE_CXX_COMPILER=nvc++ -DCXX_EXTRA_FLAGS="-Ofast;-stdpar;-gpu=cc61"
   )
@@ -89,6 +90,11 @@ function test_nompi() {
     :
     test_nompi "0" omp -DCMAKE_CXX_COMPILER=g++ -DCXX_EXTRA_FLAGS="-Ofast"
     test_nompi "0" omp -DCMAKE_CXX_COMPILER=clang++ # clang fails with -Ofast, solutions if off by 0.008%
+  )
+  (
+    :
+    test_nompi "0" tbb -DCMAKE_CXX_COMPILER=g++ -DCXX_EXTRA_FLAGS="-Ofast"
+    test_nompi "0" tbb -DCMAKE_CXX_COMPILER=clang++ -DCXX_EXTRA_FLAGS="-Ofast"
   )
   (
     :
@@ -173,10 +179,10 @@ function test_nompi() {
   test_mpi $CPU_RANKS "0" serial -DCMAKE_CXX_COMPILER=clang++
   (
     :
-    test_mpi $CPU_RANKS "0" std-indices -DCMAKE_CXX_COMPILER=g++ -DUSE_TBB=ON
-    test_mpi $CPU_RANKS "0" std-indices -DCMAKE_CXX_COMPILER=g++ -DUSE_ONEDPL=OPENMP
-    test_mpi $CPU_RANKS "0" std-indices -DCMAKE_CXX_COMPILER=clang++ -DUSE_TBB=ON
-    test_mpi $CPU_RANKS "0" std-indices -DCMAKE_CXX_COMPILER=clang++ -DUSE_ONEDPL=OPENMP
+    test_mpi $CPU_RANKS "0" std-indices -DCMAKE_CXX_COMPILER=g++ -DUSE_ONETBB=ON -DFETCH_ONETBB=ON -DCXX_EXTRA_LIBRARIES=tbb
+    test_mpi $CPU_RANKS "0" std-indices -DCMAKE_CXX_COMPILER=g++ -DUSE_ONEDPL=OPENMP -DFETCH_ONEDPL=ON
+    test_mpi $CPU_RANKS "0" std-indices -DCMAKE_CXX_COMPILER=clang++ -DUSE_ONETBB=ON -DFETCH_ONETBB=ON -DCXX_EXTRA_LIBRARIES=tbb
+    test_mpi $CPU_RANKS "0" std-indices -DCMAKE_CXX_COMPILER=clang++ -DUSE_ONEDPL=OPENMP -DFETCH_ONEDPL=ON
     test_mpi $CPU_RANKS "0" std-indices -DCMAKE_CXX_COMPILER=nvc++ -DCXX_EXTRA_FLAGS="-Ofast;-stdpar;-target=multicore"
     test_mpi $GPU_RANKS "0" std-indices -DCMAKE_CXX_COMPILER=nvc++ -DCXX_EXTRA_FLAGS="-Ofast;-stdpar;-gpu=cc61;--restrict"
   )
