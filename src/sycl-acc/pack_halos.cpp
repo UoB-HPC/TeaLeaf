@@ -1,3 +1,5 @@
+#include <sstream>
+
 #include "chunk.h"
 #include "comms.h"
 #include "shared.h"
