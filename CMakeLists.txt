@@ -336,8 +336,10 @@ message(STATUS "Default ${CMAKE_BUILD_TYPE} flags are `${DEFAULT_${BUILD_TYPE}_C
 # setup common build flag defaults if there are no overrides
 if (NOT DEFINED ${BUILD_TYPE}_CXX_FLAGS)
     set(ACTUAL_${BUILD_TYPE}_CXX_FLAGS ${DEFAULT_${BUILD_TYPE}_CXX_FLAGS})
-elseif ()
+else ()
     set(ACTUAL_${BUILD_TYPE}_CXX_FLAGS ${${BUILD_TYPE}_CXX_FLAGS})
+    separate_arguments(${BUILD_TYPE}_CXX_FLAGS)
+    separate_arguments(ACTUAL_${BUILD_TYPE}_CXX_FLAGS)
 endif ()
 
 if (NOT ENABLE_MPI)
