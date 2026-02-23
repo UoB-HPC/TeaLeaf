@@ -105,6 +105,19 @@ int main(int argc, char **argv) {
   std::optional<bool> mpi_cuda_aware_runtime = {};
 #endif
 
+#if defined(OMPI_HAVE_MPI_EXT_ROCM) && OMPI_HAVE_MPI_EXT_ROCM
+  std::optional<bool> mpi_hip_aware_header = true;
+#elif defined(OMPI_HAVE_MPI_EXT_ROCM) && !OMPI_HAVE_MPI_EXT_ROCM
+  std::optional<bool> mpi_hip_aware_header = false;
+#else
+  std::optional<bool> mpi_hip_aware_header = {};
+#endif
+#if defined(OMPI_HAVE_MPI_EXT_ROCM)
+  std::optional<bool> mpi_hip_aware_runtime = MPIX_Query_rocm_support() != 0;
+#else
+  std::optional<bool> mpi_hip_aware_runtime = {};
+#endif
+
   initialise_model_info(settings);
   State *states{};
   read_config(settings, &states);
@@ -146,6 +159,10 @@ int main(int argc, char **argv) {
                 (mpi_cuda_aware_header ? (*mpi_cuda_aware_header ? "true" : "false") : "unknown"));
   print_and_log(settings, " - Runtime device-awareness (CUDA-awareness): %s\n",
                 (mpi_cuda_aware_runtime ? (*mpi_cuda_aware_runtime ? "true" : "false") : "unknown"));
+  print_and_log(settings, " - Header device-awareness (HIP-awareness):   %s\n",
+                (mpi_hip_aware_header ? (*mpi_hip_aware_header ? "true" : "false") : "unknown"));
+  print_and_log(settings, " - Runtime device-awareness (HIP-awareness):  %s\n",
+                (mpi_hip_aware_runtime ? (*mpi_hip_aware_runtime ? "true" : "false") : "unknown"));
   print_and_log(settings, " - Host-Device halo exchange staging buffer:  %s\n", (settings.staging_buffer ? "true" : "false"));
 
   long chunk_comms_total_x = 0, chunk_comms_total_y = 0;
