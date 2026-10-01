@@ -4,6 +4,7 @@
 #include "kernel_interface.h"
 #include <cfloat>
 #include <cmath>
+#include <vector>
 #include <cstring>
 
 void tqli(double *d, double *e, int n);
@@ -13,10 +14,8 @@ void eigenvalue_driver_initialise(Chunk *chunks, Settings &settings, int num_cg_
   START_PROFILING(settings.kernel_profile);
 
   for (int cc = 0; cc < settings.num_chunks_per_rank; ++cc) {
-    double diag[num_cg_iters];
-    double offdiag[num_cg_iters];
-    std::memset(diag, 0, sizeof(diag));
-    std::memset(offdiag, 0, sizeof(offdiag));
+    std::vector<double> diag(num_cg_iters);
+    std::vector<double> offdiag(num_cg_iters);
 
     // Prepare matrix
     for (int ii = 0; ii < num_cg_iters; ++ii) {
@@ -31,7 +30,7 @@ void eigenvalue_driver_initialise(Chunk *chunks, Settings &settings, int num_cg_
     }
 
     // Calculate the eigenvalues (ignore eigenvectors)
-    tqli(diag, offdiag, num_cg_iters);
+    tqli(diag.data(), offdiag.data(), num_cg_iters);
 
     chunks[cc].eigmin = DBL_MAX;
     chunks[cc].eigmax = DBL_MIN;

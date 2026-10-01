@@ -4,7 +4,6 @@
 #include "comms.h"
 #include "cuknl_shared.h"
 
-
 __global__ void pack_left(const int x, const int y, const int depth, const int halo_depth, const double *field, double *buffer,
                           int buffer_offset) {
   const int y_inner = y - 2 * halo_depth;
@@ -153,13 +152,20 @@ void run_send_recv_halo(Chunk *, Settings &settings,                            
                         MPI_Request *send_request, MPI_Request *recv_request) {
   START_PROFILING(settings.kernel_profile);
   if (settings.staging_buffer) {
-    hipMemcpy(dest_staging_send_buffer, src_send_buffer, buffer_len * sizeof(double), CLOVER_MEMCPY_KIND_D2H);
-    hipMemcpy(dest_staging_recv_buffer, src_recv_buffer, buffer_len * sizeof(double), CLOVER_MEMCPY_KIND_D2H);
+
+    if (auto result = hipMemcpy(dest_staging_send_buffer, src_send_buffer, buffer_len * sizeof(double), CLOVER_MEMCPY_KIND_D2H);
+        result != hipSuccess) {
+      die(__LINE__, __FILE__, "hipMemcpy failed - return code %d (%s)\n", result, hipGetErrorName(result));
+    }
+    if (auto result = hipMemcpy(dest_staging_recv_buffer, src_recv_buffer, buffer_len * sizeof(double), CLOVER_MEMCPY_KIND_D2H);
+        result != hipSuccess) {
+      die(__LINE__, __FILE__, "hipMemcpy failed - return code %d (%s)\n", result, hipGetErrorName(result));
+    }
     send_recv_message(settings,                                           //
                       dest_staging_send_buffer, dest_staging_recv_buffer, //
                       buffer_len, neighbour, send_tag, recv_tag, send_request, recv_request);
   } else {
-    hipDeviceSynchronize();
+    check_errors(__LINE__, __FILE__);
     send_recv_message(settings, src_send_buffer, src_recv_buffer, buffer_len, neighbour, send_tag, recv_tag, send_request, recv_request);
   }
   STOP_PROFILING(settings.kernel_profile, __func__);
@@ -171,7 +177,10 @@ void run_restore_recv_halo(Chunk *, Settings &settings, //
                            FieldBufferType dest_recv_buffer, StagingBufferType src_staging_recv_buffer, int buffer_len) {
   START_PROFILING(settings.kernel_profile);
   if (settings.staging_buffer) {
-    hipMemcpy(dest_recv_buffer, src_staging_recv_buffer, buffer_len * sizeof(double), CLOVER_MEMCPY_KIND_H2D);
+    if (auto result = hipMemcpy(dest_recv_buffer, src_staging_recv_buffer, buffer_len * sizeof(double), CLOVER_MEMCPY_KIND_H2D);
+        result != hipSuccess) {
+      die(__LINE__, __FILE__, "hipMemcpy failed - return code %d (%s)\n", result, hipGetErrorName(result));
+    }
   }
   STOP_PROFILING(settings.kernel_profile, __func__);
 }

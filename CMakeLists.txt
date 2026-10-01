@@ -1,107 +1,19 @@
 cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 
+if (CMAKE_VERSION VERSION_GREATER_EQUAL "3.24.0")
+    cmake_policy(SET CMP0135 NEW)
+endif ()
+
 project(tealeaf VERSION 1.0 LANGUAGES C CXX)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
-set(CMAKE_VERBOSE_MAKEFILE ON)
-
-# some nicer defaults for standard C
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-
 include(FetchContent)
-
-######
-#set(MODEL hip)
-######
-#set(MODEL std-indices)
-#set(NVHPC_OFFLOAD cc60)
-#set(CXX_EXTRA_FLAGS -stdpar=multicore)
-#set(USE_TBB ON)
-
-
-########
-#########
-if (NOT MODEL)
-    #    set(MODEL cuda)
-    #    set(CMAKE_CUDA_COMPILER /opt/nvidia/hpc_sdk/Linux_x86_64/23.3/compilers/bin/nvcc)
-    #    set(CUDA_ARCH sm_60)
-
-#    set(MODEL std-indices)
-
-    set(MODEL sycl-usm)
-    set(SYCL_COMPILER ONEAPI-ICPX)
-
-    set(ENV{HIPSYCL_TARGETS} omp.accelerated)
-    set(SYCL_COMPILER HIPSYCL)
-    set(SYCL_COMPILER_DIR /opt/hipsycl/485ea80/)
-#        set(KOKKOS_IN_TREE /home/tom/Downloads/kokkos-4.0.01/)
-#        set(Kokkos_ENABLE_OPENMP ON)
-
-
-#    set(MODEL sycl-usm)
-#    set(SYCL_COMPILER ONEAPI-ICPX)
-#    set(SYCL_COMPILER_DIR /opt/intel/oneapi/compiler/2023.1.0/linux/bin-llvm/)
-#    set(CXX_EXTRA_FLAGS -fsycl-targets=nvptx64-nvidia-cuda --cuda-path=/opt/nvidia/hpc_sdk/Linux_x86_64/2023/cuda/ -Xsycl-target-backend --cuda-gpu-arch=sm_60)
-#    set(CXX_EXTRA_LINK_FLAGS -fsycl-targets=nvptx64-nvidia-cuda --cuda-path=/opt/nvidia/hpc_sdk/Linux_x86_64/2023/cuda/ -Xsycl-target-backend --cuda-gpu-arch=sm_60)
-
-    SET(ENABLE_MPI ON)
-    SET(ENABLE_PROFILING ON)
-    set(USE_TBB ON)
-
-    #        SET(USE_TBB ON)
-    set(MPI_HOME /usr/lib64/openmpi/)
-endif ()
-
-#set(NVHPC_OFFLOAD cc60)
-#set(CXX_EXTRA_FLAGS -stdpar=multicore)
-###########
-#set(MODEL serial)
-#########
-#set(MODEL kokkos)
-#set(KOKKOS_IN_TREE /home/tom/Downloads/kokkos-4.0.01/)
-#set(Kokkos_ENABLE_OPENMP ON)
-########
-######
-#set(MODEL cuda)
-#set(CMAKE_CUDA_COMPILER /opt/nvidia/hpc_sdk/Linux_x86_64/23.3/compilers/bin/nvcc)
-#set(CUDA_ARCH sm_60)
-#set(ENABLE_PROFILING ON)
-#set(MPI_HOME /usr/lib64/openmpi/)
-######
-#set(MODEL sycl)
-#set(SYCL_COMPILER ONEAPI-DPCPP)
-#set(SYCL_COMPILER_DIR /opt/intel/oneapi/compiler/2023.1.0/linux/bin-llvm/)
-#set(CXX_EXTRA_FLAGS -fsycl-targets=nvptx64-nvidia-cuda --cuda-path=/opt/nvidia/hpc_sdk/Linux_x86_64/2023/cuda/ -Xsycl-target-backend --cuda-gpu-arch=sm_60)
-#set(CXX_EXTRA_LINK_FLAGS -fsycl-targets=nvptx64-nvidia-cuda --cuda-path=/opt/nvidia/hpc_sdk/Linux_x86_64/2023/cuda/ -Xsycl-target-backend --cuda-gpu-arch=sm_60)
-######
-#set(MODEL sycl-acc)
-#set(SYCL_COMPILER ONEAPI-ICPX)
-#set(SYCL_COMPILER_DIR /opt/intel/oneapi/compiler/2023.1.0/linux/bin-llvm/)
-#set(CXX_EXTRA_FLAGS -fsycl-targets=nvptx64-nvidia-cuda --cuda-path=/opt/nvidia/hpc_sdk/Linux_x86_64/2023/cuda/ -Xsycl-target-backend --cuda-gpu-arch=sm_60)
-#set(CXX_EXTRA_LINK_FLAGS -fsycl-targets=nvptx64-nvidia-cuda --cuda-path=/opt/nvidia/hpc_sdk/Linux_x86_64/2023/cuda/ -Xsycl-target-backend --cuda-gpu-arch=sm_60)
-#set(ENABLE_MPI ON)
-#set(ENABLE_PROFILING OFF)
-
-
-######
-#set(CMAKE_CXX_COMPILER g++)
-#set(CMAKE_C_COMPILER gcc)
-#set(CMAKE_CUDA_HOST_COMPILER g++)
-######
-#set(MODEL omp)
-#set(OFFLOAD NVIDIA:sm_60)
-#set(CXX_EXTRA_FLAGS --cuda-path=/opt/nvidia/hpc_sdk/Linux_x86_64/2023/cuda/)
-
-
-#set(MPI_HOME /usr/lib64/openmpi/)
-
 
 ## Flags for debugging only, enable for development (ASan only works on few models)
 set(SANITIZE OFF)
 if (SANITIZE)
-    set(CXX_EXTRA_FLAGS -fsanitize=address -fsanitize=undefined -g )
+    set(CXX_EXTRA_FLAGS -fsanitize=address -fsanitize=undefined -g)
     set(CXX_EXTRA_LINK_FLAGS -fsanitize=address -fsanitize=undefined -g)
 endif ()
 
@@ -122,8 +34,8 @@ if ((NOT BUILD_TYPE STREQUAL RELEASE) AND (NOT BUILD_TYPE STREQUAL DEBUG))
 endif ()
 
 # setup some defaults flags for everything
-set(DEFAULT_DEBUG_CXX_FLAGS -O2 -Wall)
-set(DEFAULT_RELEASE_CXX_FLAGS -O3 -Wall -march=native)
+set(DEFAULT_DEBUG_FLAGS -Wall -Wno-unused-parameter -Wno-unused-function -Wno-unused-variable -O2)
+set(DEFAULT_RELEASE_FLAGS -Wall -Wno-unused-parameter -Wno-unused-function -Wno-unused-variable -O3)
 
 macro(hint_flag FLAG DESCRIPTION)
     if (NOT DEFINED ${FLAG})
@@ -157,15 +69,15 @@ option(USE_TBB "Enable oneTBB library for *supported* models. Enabling this on m
                 don't explicitly link against TBB is a no-op, see description of your selected
                 model on how this is used." OFF)
 
-option(FETCH_TBB "Fetch (download) the oneTBB library for *supported* models. This uses CMake's
-                  FetchContent feature. Specify version by setting FETCH_TBB_VERSION" OFF)
-set(FETCH_TBB_VERSION "v2021.10.0" CACHE STRING "Specify version of oneTBB to use if FETCH_TBB is ON")
+option(FETCH_ONETBB "Fetch (download) the oneTBB library for *supported* models. This uses CMake's
+                  FetchContent feature. Specify version by setting FETCH_ONETBB_VERSION" OFF)
+set(FETCH_ONETBB_VERSION "v2021.13.0" CACHE STRING "Specify version of oneTBB to use if FETCH_ONETBB is ON")
 
-if (FETCH_TBB)
+if (FETCH_ONETBB)
     FetchContent_Declare(
             TBB
             GIT_REPOSITORY https://github.com/oneapi-src/oneTBB.git
-            GIT_TAG "${FETCH_TBB_VERSION}"
+            GIT_TAG "${FETCH_ONETBB_VERSION}"
     )
     # Don't fail builds on waring (TBB has -Wall while not being free of warnings from unused symbols...)
     set(CMAKE_POLICY_DEFAULT_CMP0077 NEW)
@@ -184,7 +96,7 @@ option(USE_ONEDPL "Enable oneDPL library for *supported* models. Enabling this o
 
 option(FETCH_ONEDPL "Fetch (download) the oneDPL library for *supported* models. This uses CMake's
                   FetchContent feature. Specify version by setting FETCH_ONEDPL_VERSION" OFF)
-set(FETCH_ONEDPL_VERSION "oneDPL-2022.2.0-rc1" CACHE STRING "Specify version of oneTBB to use if FETCH_ONEDPL is ON")
+set(FETCH_ONEDPL_VERSION "oneDPL-2022.6.0-rc1" CACHE STRING "Specify version of oneTBB to use if FETCH_ONEDPL is ON")
 
 if (FETCH_ONEDPL)
     FetchContent_Declare(
@@ -201,7 +113,7 @@ if (FETCH_ONEDPL)
     FetchContent_GetProperties(oneDPL)
     if (NOT oneDPL_POPULATED)
         FetchContent_Populate(oneDPL)
-        if (USE_TBB)
+        if (USE_ONETBB)
             macro(find_package NAME)
                 if ("${NAME}" STREQUAL "TBB")
                     message(STATUS "Discarding oneDPL's call to find_package(${NAME} ${ARGN})")
@@ -242,7 +154,7 @@ set(MODEL_SRC
         pack_halos.cpp
         ppcg.cpp
         solver_methods.cpp
-        )
+)
 
 # register out models <model_name> <preprocessor_def_name> <source files...>
 
@@ -254,6 +166,7 @@ register_model(hip USE_HIP ${MODEL_SRC})
 register_model(std-indices USE_STD ${MODEL_SRC})
 register_model(sycl-acc USE_SYCL_ACC ${MODEL_SRC})
 register_model(sycl-usm USE_SYCL_USM ${MODEL_SRC})
+register_model(tbb USE_TBB ${MODEL_SRC})
 
 if ("${MODEL}" STREQUAL omp-target)
     set(BIN_NAME omp-target-tealeaf)
@@ -314,8 +227,7 @@ list(APPEND IMPL_SOURCES
         driver/kernel_initialise_driver.cpp
 
         driver/mpi_shim.cpp
-        #
-        )
+)
 
 # run model specific setup, i.e append build flags, etc
 setup()
@@ -330,14 +242,14 @@ if (CMAKE_CXX_FLAGS_${BUILD_TYPE})
     wipe_gcc_style_optimisation_flags(CMAKE_CXX_FLAGS_${BUILD_TYPE})
 endif ()
 
-message(STATUS "Default ${CMAKE_BUILD_TYPE} flags are `${DEFAULT_${BUILD_TYPE}_CXX_FLAGS}`, set ${BUILD_TYPE}_CXX_FLAGS to override (CXX_EXTRA_* flags are not affected)")
+message(STATUS "Default ${CMAKE_BUILD_TYPE} flags are `${DEFAULT_${BUILD_TYPE}_FLAGS}`, set ${BUILD_TYPE}_FLAGS to override (CXX_EXTRA_* flags are not affected)")
 
 
 # setup common build flag defaults if there are no overrides
-if (NOT DEFINED ${BUILD_TYPE}_CXX_FLAGS)
-    set(ACTUAL_${BUILD_TYPE}_CXX_FLAGS ${DEFAULT_${BUILD_TYPE}_CXX_FLAGS})
-elseif ()
-    set(ACTUAL_${BUILD_TYPE}_CXX_FLAGS ${${BUILD_TYPE}_CXX_FLAGS})
+if (NOT DEFINED ${BUILD_TYPE}_FLAGS)
+    set(ACTUAL_${BUILD_TYPE}_FLAGS ${DEFAULT_${BUILD_TYPE}_FLAGS})
+else ()
+    set(ACTUAL_${BUILD_TYPE}_FLAGS ${${BUILD_TYPE}_FLAGS})
 endif ()
 
 if (NOT ENABLE_MPI)
@@ -358,8 +270,8 @@ message(STATUS "Libraries   : ${LINK_LIBRARIES} ${CXX_EXTRA_LIBRARIES}")
 message(STATUS "CXX Flags   : ${CMAKE_CXX_FLAGS_${BUILD_TYPE}} ${ACTUAL_${BUILD_TYPE}_CXX_FLAGS} ${CXX_EXTRA_FLAGS}
     CXX flags derived from (CMake + (Override ? Override : Default) + Extras), where:
         CMake                    = `${CMAKE_CXX_FLAGS_${BUILD_TYPE}}`
-        Default                  = `${DEFAULT_${BUILD_TYPE}_CXX_FLAGS}`
-        Override (${BUILD_TYPE}_CXX_FLAGS) = `${${BUILD_TYPE}_CXX_FLAGS}`
+        Default                  = `${DEFAULT_${BUILD_TYPE}_FLAGS}`
+        Override (${BUILD_TYPE}_FLAGS) = `${${BUILD_TYPE}_FLAGS}`
         Extras (CXX_EXTRA_FLAGS) = `${CXX_EXTRA_FLAGS}`")
 message(STATUS "CXX Link Flags  : ${LINK_FLAGS} ${CXX_EXTRA_LINK_FLAGS}")
 message(STATUS "CXX Linker Flags: ${CMAKE_EXE_LINKER_FLAGS} ${CXX_EXTRA_LINKER_FLAGS} ")
@@ -383,10 +295,9 @@ if (CXX_EXTRA_LIBRARIES)
     target_link_libraries(${EXE_NAME} PUBLIC ${CXX_EXTRA_LIBRARIES})
 endif ()
 
-target_compile_options(${EXE_NAME} PUBLIC "$<$<COMPILE_LANGUAGE:CXX>:$<$<CONFIG:Release>:${ACTUAL_RELEASE_CXX_FLAGS};${CXX_EXTRA_FLAGS}>>")
-target_compile_options(${EXE_NAME} PUBLIC "$<$<COMPILE_LANGUAGE:CXX>:$<$<CONFIG:Debug>:${ACTUAL_DEBUG_CXX_FLAGS};${CXX_EXTRA_FLAGS}>>")
+target_compile_options(${EXE_NAME} PUBLIC "$<$<CONFIG:Release>:${ACTUAL_RELEASE_FLAGS};${CXX_EXTRA_FLAGS}>")
+target_compile_options(${EXE_NAME} PUBLIC "$<$<CONFIG:Debug>:${ACTUAL_DEBUG_FLAGS};${CXX_EXTRA_FLAGS}>")
 
-target_compile_options(${EXE_NAME} PUBLIC "$<$<COMPILE_LANGUAGE:C>:$<$<CONFIG:Release>:${ACTUAL_RELEASE_C_FLAGS};${C_EXTRA_FLAGS}>>")
 target_link_options(${EXE_NAME} PUBLIC $<$<COMPILE_LANGUAGE:CXX>:LINKER:${CXX_EXTRA_LINKER_FLAGS}>)
 target_link_options(${EXE_NAME} PUBLIC $<$<COMPILE_LANGUAGE:CXX>:${LINK_FLAGS};${CXX_EXTRA_LINK_FLAGS}>)
 

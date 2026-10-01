@@ -4,7 +4,7 @@
 
 double calc_dt(Chunk *chunks);
 void calc_min_timestep(Chunk *chunks, double *dt, int chunks_per_task);
-void solve(Chunk *chunks, Settings &settings, int tt, double *wallclock_prev);
+void solve(Chunk *chunks, Settings &settings, int tt, const double *wallclock_prev);
 
 // The main timestep loop
 bool diffuse(Chunk *chunks, Settings &settings) {
@@ -17,7 +17,7 @@ bool diffuse(Chunk *chunks, Settings &settings) {
 }
 
 // Performs a solve for a single timestep
-void solve(Chunk *chunks, Settings &settings, int tt, double *wallclock_prev) {
+void solve(Chunk *chunks, Settings &settings, int tt, const double *wallclock_prev) {
   print_and_log(settings, "\n Timestep %d\n", tt + 1);
   profiler_start_timer(settings.wallclock_profile);
 

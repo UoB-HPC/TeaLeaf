@@ -46,9 +46,9 @@ __global__ void jacobi_init(const int x_inner, const int y_inner, const int halo
 
   if (row == 0 || col == 0) return;
 
-  double density_center;
-  double density_left;
-  double density_down;
+  double density_center{};
+  double density_left{};
+  double density_down{};
 
   if (coefficient == CONDUCTIVITY) {
     density_center = density[index];

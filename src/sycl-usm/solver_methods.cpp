@@ -4,18 +4,18 @@
 
 using namespace cl::sycl;
 
-void field_summary_func(const int x,            //
-                        const int y,            //
-                        const int halo_depth,   //
-                        SyclBuffer &u,          //
-                        SyclBuffer &density,    //
-                        SyclBuffer &energy0,    //
-                        SyclBuffer &volume,     //
-                        Summary *&summary_temp, //
-                        double *vol,            //
-                        double *mass,           //
-                        double *ie,             //
-                        double *temp,           //
+void field_summary_func(const int x,             //
+                        const int y,             //
+                        const size_t halo_depth, //
+                        SyclBuffer &u,           //
+                        SyclBuffer &density,     //
+                        SyclBuffer &energy0,     //
+                        SyclBuffer &volume,      //
+                        Summary *&summary_temp,  //
+                        double *vol,             //
+                        double *mass,            //
+                        double *ie,              //
+                        double *temp,            //
                         queue &device_queue) {
   auto event = device_queue.submit([&](handler &h) {
     h.parallel_for<class field_summary_func>(                    //
@@ -57,11 +57,11 @@ void store_energy(const int x,         //
 }
 
 // Copies the inner u into u0.
-void copy_u(const int x,          //
-            const int y,          //
-            const int halo_depth, //
-            SyclBuffer &u,        //
-            SyclBuffer &u0,       //
+void copy_u(const int x,             //
+            const int y,             //
+            const size_t halo_depth, //
+            SyclBuffer &u,           //
+            SyclBuffer &u0,          //
             queue &device_queue) {
   device_queue
       .submit([&](handler &h) {
@@ -77,14 +77,14 @@ void copy_u(const int x,          //
 }
 
 // Calculates the residual r.
-void calculate_residual(const int x,          //
-                        const int y,          //
-                        const int halo_depth, //
-                        SyclBuffer &u,        //
-                        SyclBuffer &u0,       //
-                        SyclBuffer &r,        //
-                        SyclBuffer &kx,       //
-                        SyclBuffer &ky,       //
+void calculate_residual(const int x,             //
+                        const int y,             //
+                        const size_t halo_depth, //
+                        SyclBuffer &u,           //
+                        SyclBuffer &u0,          //
+                        SyclBuffer &r,           //
+                        SyclBuffer &kx,          //
+                        SyclBuffer &ky,          //
                         queue &device_queue) {
   device_queue
       .submit([&](handler &h) {
@@ -103,12 +103,12 @@ void calculate_residual(const int x,          //
 }
 
 // Calculates the 2 norm of the provided buffer.
-void calculate_2norm(const int x,           //
-                     const int y,           //
-                     const int halo_depth,  //
-                     SyclBuffer &b,         //
-                     SyclBuffer &norm_temp, //
-                     double *norm,          //
+void calculate_2norm(const int x,             //
+                     const int y,             //
+                     const size_t halo_depth, //
+                     SyclBuffer &b,           //
+                     SyclBuffer &norm_temp,   //
+                     double *norm,            //
                      queue &device_queue) {
 
   auto event = device_queue.submit([&](handler &h) {
@@ -126,12 +126,12 @@ void calculate_2norm(const int x,           //
 }
 
 // Finalises the energy field.
-void finalise(const int x,          //
-              const int y,          //
-              const int halo_depth, //
-              SyclBuffer &u,        //
-              SyclBuffer &density,  //
-              SyclBuffer &energy,   //
+void finalise(const int x,             //
+              const int y,             //
+              const size_t halo_depth, //
+              SyclBuffer &u,           //
+              SyclBuffer &density,     //
+              SyclBuffer &energy,      //
               queue &device_queue) {
   device_queue
       .submit([&](handler &h) {

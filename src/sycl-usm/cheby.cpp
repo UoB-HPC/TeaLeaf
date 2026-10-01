@@ -5,17 +5,17 @@
 using namespace cl::sycl;
 
 // Initialises the Chebyshev solver
-void cheby_init(const int x,          //
-                const int y,          //
-                const int halo_depth, //
-                const double theta,   //
-                SyclBuffer &p,        //
-                SyclBuffer &r,        //
-                SyclBuffer &u,        //
-                SyclBuffer &u0,       //
-                SyclBuffer &w,        //
-                SyclBuffer &kx,       //
-                SyclBuffer &ky,       //
+void cheby_init(const int x,             //
+                const int y,             //
+                const size_t halo_depth, //
+                const double theta,      //
+                SyclBuffer &p,           //
+                SyclBuffer &r,           //
+                SyclBuffer &u,           //
+                SyclBuffer &u0,          //
+                SyclBuffer &w,           //
+                SyclBuffer &kx,          //
+                SyclBuffer &ky,          //
                 queue &device_queue) {
   device_queue
       .submit([&](handler &h) {
@@ -37,11 +37,11 @@ void cheby_init(const int x,          //
 }
 
 // Calculates U
-void cheby_calc_u(const int x,          //
-                  const int y,          //
-                  const int halo_depth, //
-                  SyclBuffer &p,        //
-                  SyclBuffer &u,        //
+void cheby_calc_u(const int x,             //
+                  const int y,             //
+                  const size_t halo_depth, //
+                  SyclBuffer &p,           //
+                  SyclBuffer &u,           //
                   queue &device_queue) {
   device_queue.submit([&](handler &h) {
     h.parallel_for<class cheby_calc_u>(range<1>(x * y), [=](id<1> idx) {
@@ -58,18 +58,18 @@ void cheby_calc_u(const int x,          //
 }
 
 // The main Cheby iteration step
-void cheby_iterate(const int x,          //
-                   const int y,          //
-                   const int halo_depth, //
-                   const double alpha,   //
-                   const double beta,    //
-                   SyclBuffer &p,        //
-                   SyclBuffer &r,        //
-                   SyclBuffer &u,        //
-                   SyclBuffer &u0,       //
-                   SyclBuffer &w,        //
-                   SyclBuffer &kx,       //
-                   SyclBuffer &ky,       //
+void cheby_iterate(const int x,             //
+                   const int y,             //
+                   const size_t halo_depth, //
+                   const double alpha,      //
+                   const double beta,       //
+                   SyclBuffer &p,           //
+                   SyclBuffer &r,           //
+                   SyclBuffer &u,           //
+                   SyclBuffer &u0,          //
+                   SyclBuffer &w,           //
+                   SyclBuffer &kx,          //
+                   SyclBuffer &ky,          //
                    queue &device_queue) {
   device_queue.submit([&](handler &h) {
     h.parallel_for<class cheby_iterate>(range<1>(x * y), [=](id<1> idx) {

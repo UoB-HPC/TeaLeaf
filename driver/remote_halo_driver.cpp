@@ -1,3 +1,5 @@
+#include <vector>
+
 #include "chunk.h"
 #include "comms.h"
 #include "drivers.h"
@@ -46,7 +48,7 @@ void remote_halo_driver(Chunk *chunks, Settings &settings, int depth) {
 #ifndef NO_MPI
   // Two sends and two receives
   int max_messages = settings.num_chunks_per_rank * 4;
-  MPI_Request requests[max_messages];
+  std::vector<MPI_Request> requests(max_messages, {});
 
   int num_messages = 0;
 
@@ -80,7 +82,7 @@ void remote_halo_driver(Chunk *chunks, Settings &settings, int depth) {
   for (int cc = 0; cc < settings.num_chunks_per_rank; ++cc) {
     run_before_waitall_halo(&chunks[cc], settings);
   }
-  wait_for_requests(settings, num_messages, requests);
+  wait_for_requests(settings, num_messages, requests.data());
   for (int cc = 0; cc < settings.num_chunks_per_rank; ++cc) {
     int buffer_len = 0;
     for (int ii = 0; ii < NUM_FIELDS; ++ii) {
@@ -133,7 +135,7 @@ void remote_halo_driver(Chunk *chunks, Settings &settings, int depth) {
   for (int cc = 0; cc < settings.num_chunks_per_rank; ++cc) {
     run_before_waitall_halo(&chunks[cc], settings);
   }
-  wait_for_requests(settings, num_messages, requests);
+  wait_for_requests(settings, num_messages, requests.data());
   for (int cc = 0; cc < settings.num_chunks_per_rank; ++cc) {
     int buffer_len = 0;
     for (int ii = 0; ii < NUM_FIELDS; ++ii) {

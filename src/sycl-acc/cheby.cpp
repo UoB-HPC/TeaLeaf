@@ -7,7 +7,7 @@ using namespace cl::sycl;
 // Initialises the Chebyshev solver
 void cheby_init(const int x,          //
                 const int y,          //
-                const int halo_depth, //
+                const size_t halo_depth, //
                 const double theta,   //
                 SyclBuffer &pBuff,    //
                 SyclBuffer &rBuff,    //
@@ -47,7 +47,7 @@ void cheby_init(const int x,          //
 // Calculates U
 void cheby_calc_u(const int x,          //
                   const int y,          //
-                  const int halo_depth, //
+                  const size_t halo_depth, //
                   SyclBuffer &pBuff,    //
                   SyclBuffer &uBuff,    //
                   queue &device_queue) {
@@ -70,7 +70,7 @@ void cheby_calc_u(const int x,          //
 // The main Cheby iteration step
 void cheby_iterate(const int x,          //
                    const int y,          //
-                   const int halo_depth, //
+                   const size_t halo_depth, //
                    const double alpha,   //
                    const double beta,    //
                    SyclBuffer &pBuff,    //

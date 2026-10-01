@@ -2,6 +2,7 @@
 #include <cctype>
 #include <cstdio>
 #include <cstring>
+#include <vector>
 
 int read_states(FILE *tea_in, Settings &settings, State **states);
 void read_settings(FILE *tea_in, Settings &settings);
@@ -70,26 +71,27 @@ void read_settings(FILE *tea_in, Settings &settings) {
 
   // Get the number of states present in the config file
   while (getline(&line, &len, tea_in) != EOF) {
-    char word[len];
+
+    std::vector<char> word(len);
 
     // Parse the key-value pairs
-    if (starts_get_double("initial_timestep", line, word, &settings.dt_init)) continue;
-    if (starts_get_double("end_time", line, word, &settings.end_time)) continue;
-    if (starts_get_int("end_step", line, word, &settings.end_step)) continue;
-    if (starts_get_double("xmin", line, word, &settings.grid_x_min)) continue;
-    if (starts_get_double("ymin", line, word, &settings.grid_y_min)) continue;
-    if (starts_get_double("xmax", line, word, &settings.grid_x_max)) continue;
-    if (starts_get_double("ymax", line, word, &settings.grid_y_max)) continue;
-    if (settings.grid_x_cells == DEF_GRID_X_CELLS && starts_get_int("x_cells", line, word, &settings.grid_x_cells)) continue;
-    if (settings.grid_y_cells == DEF_GRID_Y_CELLS && starts_get_int("y_cells", line, word, &settings.grid_y_cells)) continue;
-    if (starts_get_int("summary_frequency", line, word, &settings.summary_frequency)) continue;
-    if (starts_get_int("presteps", line, word, &settings.presteps)) continue;
-    if (starts_get_int("ppcg_inner_steps", line, word, &settings.ppcg_inner_steps)) continue;
-    if (starts_get_double("epslim", line, word, &settings.eps_lim)) continue;
-    if (starts_get_int("max_iters", line, word, &settings.max_iters)) continue;
-    if (starts_get_double("eps", line, word, &settings.eps)) continue;
-    if (starts_get_int("num_chunks_per_rank", line, word, &settings.num_chunks_per_rank)) continue;
-    if (starts_get_int("halo_depth", line, word, &settings.halo_depth)) continue;
+    if (starts_get_double("initial_timestep", line, word.data(), &settings.dt_init)) continue;
+    if (starts_get_double("end_time", line, word.data(), &settings.end_time)) continue;
+    if (starts_get_int("end_step", line, word.data(), &settings.end_step)) continue;
+    if (starts_get_double("xmin", line, word.data(), &settings.grid_x_min)) continue;
+    if (starts_get_double("ymin", line, word.data(), &settings.grid_y_min)) continue;
+    if (starts_get_double("xmax", line, word.data(), &settings.grid_x_max)) continue;
+    if (starts_get_double("ymax", line, word.data(), &settings.grid_y_max)) continue;
+    if (settings.grid_x_cells == DEF_GRID_X_CELLS && starts_get_int("x_cells", line, word.data(), &settings.grid_x_cells)) continue;
+    if (settings.grid_y_cells == DEF_GRID_Y_CELLS && starts_get_int("y_cells", line, word.data(), &settings.grid_y_cells)) continue;
+    if (starts_get_int("summary_frequency", line, word.data(), &settings.summary_frequency)) continue;
+    if (starts_get_int("presteps", line, word.data(), &settings.presteps)) continue;
+    if (starts_get_int("ppcg_inner_steps", line, word.data(), &settings.ppcg_inner_steps)) continue;
+    if (starts_get_double("epslim", line, word.data(), &settings.eps_lim)) continue;
+    if (starts_get_int("max_iters", line, word.data(), &settings.max_iters)) continue;
+    if (starts_get_double("eps", line, word.data(), &settings.eps)) continue;
+    if (starts_get_int("num_chunks_per_rank", line, word.data(), &settings.num_chunks_per_rank)) continue;
+    if (starts_get_int("halo_depth", line, word.data(), &settings.halo_depth)) continue;
 
     // Parse the switches
     if (starts_with("check_result", line)) {
@@ -156,9 +158,9 @@ int read_states(FILE *tea_in, Settings &settings, State **states) {
   // First find the number of states
   while (getline(&line, &len, tea_in) != EOF) {
     int state_num = 0;
-    char word[len];
+    std::vector<char> word(len);
 
-    if (starts_get_int("state", line, word, &state_num)) {
+    if (starts_get_int("state", line, word.data(), &state_num)) {
       num_states = tealeaf_MAX(num_states, state_num);
     }
   }
@@ -181,42 +183,42 @@ int read_states(FILE *tea_in, Settings &settings, State **states) {
   // not change the answer.
   while (getline(&line, &len, tea_in) != EOF) {
     int state_num = 0;
-    char word[len];
+    std::vector<char> word(len);
 
     // State found
-    if (starts_get_int("state", line, word, &state_num)) {
+    if (starts_get_int("state", line, word.data(), &state_num)) {
       State *state = &((*states)[state_num - 1]);
 
       if (state->defined) {
         die(__LINE__, __FILE__, "State number %d defined twice.\n", state_num);
       }
 
-      read_value(line, "density", word);
-      state->density = atof(word);
-      read_value(line, "energy", word);
-      state->energy = atof(word);
+      read_value(line, "density", word.data());
+      state->density = atof(word.data());
+      read_value(line, "energy", word.data());
+      state->energy = atof(word.data());
 
       // State 1 is the default state so geometry irrelevant
       if (state_num > 1) {
-        read_value(line, "xmin", word);
-        state->x_min = atof(word) + settings.dx / 100.0;
-        read_value(line, "ymin", word);
-        state->y_min = atof(word) + settings.dy / 100.0;
-        read_value(line, "xmax", word);
-        state->x_max = atof(word) - settings.dx / 100.0;
-        read_value(line, "ymax", word);
-        state->y_max = atof(word) - settings.dy / 100.0;
+        read_value(line, "xmin", word.data());
+        state->x_min = atof(word.data()) + settings.dx / 100.0;
+        read_value(line, "ymin", word.data());
+        state->y_min = atof(word.data()) + settings.dy / 100.0;
+        read_value(line, "xmax", word.data());
+        state->x_max = atof(word.data()) - settings.dx / 100.0;
+        read_value(line, "ymax", word.data());
+        state->y_max = atof(word.data()) - settings.dy / 100.0;
 
-        read_value(line, "geometry", word);
+        read_value(line, "geometry", word.data());
 
-        if (tealeaf_strmatch(word, "rectangle")) {
+        if (tealeaf_strmatch(word.data(), "rectangle")) {
           state->geometry = Geometry::RECTANGULAR;
-        } else if (tealeaf_strmatch(word, "circular")) {
+        } else if (tealeaf_strmatch(word.data(), "circular")) {
           state->geometry = Geometry::CIRCULAR;
 
-          read_value(line, "radius", word);
-          state->radius = atof(word);
-        } else if (tealeaf_strmatch(word, "point")) {
+          read_value(line, "radius", word.data());
+          state->radius = atof(word.data());
+        } else if (tealeaf_strmatch(word.data(), "point")) {
           state->geometry = Geometry::POINT;
         }
       }
