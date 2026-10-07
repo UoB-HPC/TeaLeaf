@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cuda.h>
+
 using FieldBufferType = double *;
 using StagingBufferType = double *;
 
