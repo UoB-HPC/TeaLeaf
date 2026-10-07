@@ -26,7 +26,8 @@ void field_summary_func(const int x,             //
                         double *ie,              //
                         double *temp,            //
                         queue &device_queue) {
-  buffer<Summary, 1> summary_temp{range<1>{1}};
+  Summary summary_init{};
+  buffer<Summary, 1> summary_temp{&summary_init, range<1>{1}};
   device_queue.submit([&](handler &h) {
     auto u = uBuff.get_access<access::mode::read>(h);
     auto density = densityBuff.get_access<access::mode::read>(h);
@@ -54,10 +55,10 @@ void field_summary_func(const int x,             //
   device_queue.wait_and_throw();
 #endif
   auto s = summary_temp.get_host_access()[0];
-  *vol = s.vol;
-  *mass = s.mass;
-  *ie = s.ie;
-  *temp = s.temp;
+  *vol += s.vol;
+  *mass += s.mass;
+  *ie += s.ie;
+  *temp += s.temp;
 }
 
 // Copies energy0 into energy1.
@@ -138,7 +139,8 @@ void calculate_2norm(const int x,            //
                      SyclBuffer &bufferBuff, //
                      double *norm,           //
                      queue &device_queue) {
-  buffer<double, 1> norm_temp{range<1>{1}};
+  double norm_temp_init = 0.0;
+  buffer<double, 1> norm_temp{&norm_temp_init, range<1>{1}};
   device_queue.submit([&](handler &h) {
     auto buffer = bufferBuff.get_access<access::mode::read>(h);
     h.parallel_for<class calculate_2norm>(                                       //
@@ -154,7 +156,7 @@ void calculate_2norm(const int x,            //
 #ifdef ENABLE_PROFILING
   device_queue.wait_and_throw();
 #endif
-  *norm = norm_temp.get_host_access()[0];
+  *norm += norm_temp.get_host_access()[0];
 }
 
 // Finalises the energy field.

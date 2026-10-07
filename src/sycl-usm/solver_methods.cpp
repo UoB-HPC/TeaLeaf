@@ -17,6 +17,7 @@ void field_summary_func(const int x,             //
                         double *ie,              //
                         double *temp,            //
                         queue &device_queue) {
+  *summary_temp = Summary{};
   auto event = device_queue.submit([&](handler &h) {
     h.parallel_for<class field_summary_func>(                    //
         range<1>(x * y),                                         //
@@ -38,10 +39,10 @@ void field_summary_func(const int x,             //
   });
   Summary s{};
   device_queue.copy(summary_temp, &s, 1, event).wait_and_throw();
-  *vol = s.vol;
-  *mass = s.mass;
-  *ie = s.ie;
-  *temp = s.temp;
+  *vol += s.vol;
+  *mass += s.mass;
+  *ie += s.ie;
+  *temp += s.temp;
 }
 
 // Copies energy0 into energy1.
@@ -111,9 +112,10 @@ void calculate_2norm(const int x,             //
                      double *norm,            //
                      queue &device_queue) {
 
+  norm_temp[0] = 0.0;
   auto event = device_queue.submit([&](handler &h) {
     h.parallel_for<class calculate_2norm>(                                       //
-        range<1>(x * y), reduction_shim(norm_temp, *norm, sycl::plus<double>()), //
+        range<1>(x * y), reduction_shim(norm_temp, 0.0, sycl::plus<double>()), //
         [=](item<1> item, auto &acc) {
           const auto kk = item[0] % x;
           const auto jj = item[0] / x;
@@ -122,7 +124,8 @@ void calculate_2norm(const int x,             //
           }
         });
   });
-  device_queue.copy(norm_temp, norm, 1, event).wait_and_throw();
+  event.wait_and_throw();
+  *norm += norm_temp[0];
 }
 
 // Finalises the energy field.

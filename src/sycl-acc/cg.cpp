@@ -77,7 +77,8 @@ void cg_init_others(const int x,             //
                     double *rro,             //
                     queue &device_queue) {
 
-  buffer<double, 1> rro_temp{range<1>{1}};
+  double rro_temp_init = 0.0;
+  buffer<double, 1> rro_temp{&rro_temp_init, range<1>{1}};
 
   device_queue.submit([&](handler &h) {
     auto r = rBuff.get_access<access::mode::read_write>(h);
@@ -118,7 +119,8 @@ void cg_calc_w(const int x,             //
                SyclBuffer &kyBuff,      //
                double *pw,              //
                queue &device_queue) {
-  buffer<double, 1> pw_temp{range<1>{1}};
+  double pw_temp_init = 0.0;
+  buffer<double, 1> pw_temp{&pw_temp_init, range<1>{1}};
   device_queue.submit([&](handler &h) {
     auto w = wBuff.get_access<access::mode::read_write>(h);
     auto p = pBuff.get_access<access::mode::read>(h);
@@ -157,7 +159,8 @@ void cg_calc_ur(const int x,             //
                 double *rrn,             //
                 queue &device_queue) {
 
-  buffer<double, 1> rrn_temp{range<1>{1}};
+  double rrn_temp_init = 0.0;
+  buffer<double, 1> rrn_temp{&rrn_temp_init, range<1>{1}};
   device_queue.submit([&](handler &h) {
     auto w = wBuff.get_access<access::mode::read_write>(h);
     auto p = pBuff.get_access<access::mode::read>(h);

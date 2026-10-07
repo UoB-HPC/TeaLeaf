@@ -75,8 +75,10 @@ void sum_reduce_buffer(double *buffer, double *result, int len) {
     sum_reduce<<<num_blocks, BLOCK_SIZE>>>(len, buffer);
     len = num_blocks;
   }
-  cudaMemcpy(result, buffer, sizeof(double), CLOVER_MEMCPY_KIND_D2H);
+  double sum = 0.0;
+  cudaMemcpy(&sum, buffer, sizeof(double), CLOVER_MEMCPY_KIND_D2H);
   check_errors(__LINE__, __FILE__);
+  *result += sum;
 }
 
 __global__ void copy_u(const int x_inner, const int y_inner, const int halo_depth, const double *src, double *dest) {

@@ -37,6 +37,7 @@ void calculate_residual(const int x, const int y, const int halo_depth, KView &u
 
 // Calculates the 2 norm of the provided buffer.
 void calculate_2norm(const int x, const int y, const int halo_depth, KView &buffer, double *norm) {
+  double norm_sum = 0.0;
   Kokkos::parallel_reduce(
       x * y,
       KOKKOS_LAMBDA(const int index, double &norm_temp) {
@@ -47,7 +48,8 @@ void calculate_2norm(const int x, const int y, const int halo_depth, KView &buff
           norm_temp += buffer(index) * buffer(index);
         }
       },
-      *norm);
+      norm_sum);
+  *norm += norm_sum;
 }
 
 // Finalises the energy field.
@@ -79,6 +81,7 @@ void run_field_summary(Chunk *chunk, Settings &settings, double *vol, double *ma
   auto &energy0 = *chunk->energy0;
   auto &volume = *chunk->volume;
 
+  double vol_sum = 0.0, mass_sum = 0.0, ie_sum = 0.0, temp_sum = 0.0;
   Kokkos::parallel_reduce(
       chunk->x * chunk->y,
       KOKKOS_LAMBDA(const int index, double &vol, double &mass, double &ie, double &temp) {
@@ -94,7 +97,11 @@ void run_field_summary(Chunk *chunk, Settings &settings, double *vol, double *ma
           temp += cellMass * u[index];
         }
       },
-      *vol, *mass, *ie, *temp);
+      vol_sum, mass_sum, ie_sum, temp_sum);
+  *vol += vol_sum;
+  *mass += mass_sum;
+  *ie += ie_sum;
+  *temp += temp_sum;
   STOP_PROFILING(settings.kernel_profile, __func__);
 }
 

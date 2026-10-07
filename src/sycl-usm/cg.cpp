@@ -72,10 +72,11 @@ void cg_init_others(const int x,             //
                     SyclBuffer &rro_temp,    //
                     double *rro,             //
                     queue &device_queue) {
+  rro_temp[0] = 0.0;
   auto event = device_queue.submit([&](handler &h) {
     h.parallel_for<class cg_init_others>(                     //
         range<1>(x * y),                                      //
-        reduction_shim(rro_temp, *rro, sycl::plus<double>()), //
+        reduction_shim(rro_temp, 0.0, sycl::plus<double>()), //
         [=](item<1> item, auto &acc) {
           const auto kk = item[0] % x;
           const auto jj = item[0] / x;
@@ -89,7 +90,8 @@ void cg_init_others(const int x,             //
           }
         });
   });
-  device_queue.copy(rro_temp, rro, 1, event).wait_and_throw();
+  event.wait_and_throw();
+  *rro += rro_temp[0];
 #ifdef ENABLE_PROFILING
   device_queue.wait_and_throw();
 #endif
@@ -106,10 +108,11 @@ void cg_calc_w(const int x,             //
                SyclBuffer &pw_temp,     //
                double *pw,              //
                queue &device_queue) {
+  pw_temp[0] = 0.0;
   auto event = device_queue.submit([&](handler &h) {
     h.parallel_for<class cg_calc_w>(                        //
         range<1>(x * y),                                    //
-        reduction_shim(pw_temp, *pw, sycl::plus<double>()), //
+        reduction_shim(pw_temp, 0.0, sycl::plus<double>()), //
         [=](item<1> item, auto &acc) {
           const auto kk = item[0] % x;
           const auto jj = item[0] / x;
@@ -122,7 +125,8 @@ void cg_calc_w(const int x,             //
           }
         });
   });
-  device_queue.copy(pw_temp, pw, 1, event).wait_and_throw();
+  event.wait_and_throw();
+  *pw += pw_temp[0];
 #ifdef ENABLE_PROFILING
   device_queue.wait_and_throw();
 #endif
@@ -140,10 +144,11 @@ void cg_calc_ur(const int x,             //
                 const double alpha,      //
                 double *rrn,             //
                 queue &device_queue) {
+  rrn_temp[0] = 0.0;
   auto event = device_queue.submit([&](handler &h) {
     h.parallel_for<class cg_calc_ur>(                         //
         range<1>(x * y),                                      //
-        reduction_shim(rrn_temp, *rrn, sycl::plus<double>()), //
+        reduction_shim(rrn_temp, 0.0, sycl::plus<double>()), //
         [=](item<1> item, auto &acc) {
           const auto kk = item[0] % x;
           const auto jj = item[0] / x;
@@ -154,7 +159,8 @@ void cg_calc_ur(const int x,             //
           }
         });
   });
-  device_queue.copy(rrn_temp, rrn, 1, event).wait_and_throw();
+  event.wait_and_throw();
+  *rrn += rrn_temp[0];
 #ifdef ENABLE_PROFILING
   device_queue.wait_and_throw();
 #endif

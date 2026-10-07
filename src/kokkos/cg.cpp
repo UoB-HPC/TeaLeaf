@@ -34,6 +34,7 @@ void cg_init_k(const int x, const int y, const int halo_depth, KView &w, KView &
 // Initialises w,r,p and calculates rro
 void cg_init_others(const int x, const int y, const int halo_depth, KView &kx, KView &ky, KView &p, KView &r, KView &u, KView &w,
                     double *rro) {
+  double rro_sum = 0.0;
   Kokkos::parallel_reduce(
       x * y,
       KOKKOS_LAMBDA(const int index, double &rro_temp) {
@@ -48,12 +49,14 @@ void cg_init_others(const int x, const int y, const int halo_depth, KView &kx, K
           rro_temp += r(index) * p(index);
         }
       },
-      *rro);
+      rro_sum);
+  *rro += rro_sum;
 }
 
 // Calculates the value for w
 void cg_calc_w(const int x, const int y, const int halo_depth, KView &w, KView &p, KView &kx, KView &ky, double *pw) {
 
+  double pw_sum = 0.0;
   Kokkos::parallel_reduce(
       x * y,
       KOKKOS_LAMBDA(const int &index, double &pw_temp) {
@@ -66,11 +69,13 @@ void cg_calc_w(const int x, const int y, const int halo_depth, KView &w, KView &
           pw_temp += w(index) * p(index);
         }
       },
-      *pw);
+      pw_sum);
+  *pw += pw_sum;
 }
 
 // Calculates the value of u and r
 void cg_calc_ur(const int x, const int y, const int halo_depth, KView &u, KView &r, KView &p, KView &w, const double alpha, double *rrn) {
+  double rrn_sum = 0.0;
   Kokkos::parallel_reduce(
       x * y,
       KOKKOS_LAMBDA(const int &index, double &rrn_temp) {
@@ -83,7 +88,8 @@ void cg_calc_ur(const int x, const int y, const int halo_depth, KView &u, KView 
           rrn_temp += r(index) * r(index);
         }
       },
-      *rrn);
+      rrn_sum);
+  *rrn += rrn_sum;
 }
 
 // Calculates a value for p
