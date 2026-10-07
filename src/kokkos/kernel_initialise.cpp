@@ -136,9 +136,11 @@ void run_model_info(Settings &settings) {
   settings.model_kind = ModelKind::Offload;
 }
 
+static int live_chunks = 0;
+
 void run_kernel_initialise(Chunk *chunk, Settings &settings, int comms_lr_len, int comms_tb_len) {
 
-  Kokkos::initialize();
+  if (live_chunks++ == 0) Kokkos::initialize();
 
   print_and_log(settings, " - Backend space: %s\n", typeid(Kokkos::DefaultExecutionSpace).name());
   print_and_log(settings, " - Backend host space: %s\n", typeid(Kokkos::DefaultHostExecutionSpace).name());
@@ -198,6 +200,5 @@ void run_kernel_finalise(Chunk *chunk, Settings &) {
   free(chunk->cheby_alphas);
   free(chunk->cheby_betas);
 
-  // TODO: Actually shouldn't be called on a per chunk basis, only by rank
-  Kokkos::finalize();
+  if (--live_chunks == 0) Kokkos::finalize();
 }
