@@ -20,20 +20,20 @@
 #define DEF_GRID_Y_CELLS 10
 #define DEF_GRID_Z_CELLS 10
 #define DEF_DT_INIT 0.1
-#define DEF_MAX_ITERS 10000
-#define DEF_EPS 1.0E-15
+#define DEF_MAX_ITERS 1000
+#define DEF_EPS 1.0E-10
 #define DEF_END_TIME 10.0
 #define DEF_END_STEP INT32_MAX
 #define DEF_SUMMARY_FREQUENCY 10
 #define DEF_KERNEL_LANGUAGE C
 #define DEF_COEFFICIENT CONDUCTIVITY
 #define DEF_ERROR_SWITCH 0
-#define DEF_PRESTEPS 30
-#define DEF_EPS_LIM 1E-5
-#define DEF_CHECK_RESULT 1
-#define DEF_PPCG_INNER_STEPS 10
+#define DEF_PRESTEPS 25
+#define DEF_EPS_LIM 1.0
+#define DEF_CHECK_RESULT 0
+#define DEF_PPCG_INNER_STEPS -1
 #define DEF_PRECONDITIONER 0
-#define DEF_SOLVER Solver::CG_SOLVER
+#define DEF_SOLVER Solver::JACOBI_SOLVER
 #define DEF_STAGING_BUFFER StagingBuffer::AUTO
 #define DEF_NUM_STATES 0
 #define DEF_NUM_CHUNKS 1
@@ -66,6 +66,8 @@ struct Settings {
   // Solve-wide constants
   int rank;
   int end_step;
+  int completed_steps;
+  int test_problem;
   int presteps;
   int max_iters;
   int coefficient;

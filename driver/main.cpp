@@ -1,3 +1,8 @@
+#include <charconv>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <optional>
 
 #include "application.h"
@@ -6,58 +11,111 @@
 #include "drivers.h"
 #include "shared.h"
 
+namespace {
+void print_help() {
+  std::puts("Usage: tealeaf [OPTIONS]\n\n"
+            "Options:\n"
+            "  -h, --help                         Print this message\n"
+            "  -s, --solver <cg|cheby|ppcg|jacobi>\n"
+            "                                     Select the linear solver\n"
+            "  -x <CELLS>                         Override the x cell count\n"
+            "  -y <CELLS>                         Override the y cell count\n"
+            "  -d, --device <INDEX|NAME>          Select an accelerator device\n"
+            "  -p, --problems <FILE>              Read expected solutions from FILE\n"
+            "  -i, -f, --in, --file <FILE>        Read the input deck from FILE\n"
+            "  -o, --out <FILE>                   Write the report to FILE\n"
+            "      --staging-buffer <true|false|auto>\n"
+            "                                     Control host staging for device-aware MPI");
+}
+
+char *read_argument(int &index, int argc, char **argv) {
+  if (index + 1 < argc) return argv[++index];
+  std::fprintf(stderr, "%s requires a value\n", argv[index]);
+  print_help();
+  finalise_comms();
+  std::exit(EXIT_FAILURE);
+}
+
+int read_positive_integer(int &index, int argc, char **argv) {
+  const char *value = read_argument(index, argc, argv);
+  int parsed = 0;
+  const auto result = std::from_chars(value, value + std::strlen(value), parsed);
+  if (result.ec == std::errc{} && result.ptr == value + std::strlen(value) && parsed > 0) return parsed;
+  std::fprintf(stderr, "%s requires a positive integer, got: %s\n", argv[index - 1], value);
+  finalise_comms();
+  std::exit(EXIT_FAILURE);
+}
+
+void replace_string(char *&destination, const char *value) {
+  const std::size_t length = std::strlen(value) + 1;
+  auto *replacement = static_cast<char *>(std::malloc(length));
+  if (!replacement) {
+    std::fputs("Unable to allocate command-line option\n", stderr);
+    finalise_comms();
+    std::exit(EXIT_FAILURE);
+  }
+  std::memcpy(replacement, value, length);
+  std::free(destination);
+  destination = replacement;
+}
+} // namespace
+
 void settings_overload(Settings &settings, int argc, char **argv) {
   for (int aa = 1; aa < argc; ++aa) {
     // Overload the solver
     if (tealeaf_strmatch(argv[aa], "-solver") || tealeaf_strmatch(argv[aa], "--solver") || tealeaf_strmatch(argv[aa], "-s")) {
-      if (aa + 1 == argc) break;
-      if (tealeaf_strmatch(argv[aa + 1], "cg")) settings.solver = Solver::CG_SOLVER;
-      if (tealeaf_strmatch(argv[aa + 1], "cheby")) settings.solver = Solver::CHEBY_SOLVER;
-      if (tealeaf_strmatch(argv[aa + 1], "ppcg")) settings.solver = Solver::PPCG_SOLVER;
-      if (tealeaf_strmatch(argv[aa + 1], "jacobi")) settings.solver = Solver::JACOBI_SOLVER;
+      const char *value = read_argument(aa, argc, argv);
+      if (tealeaf_strmatch(value, "cg")) {
+        settings.solver = Solver::CG_SOLVER;
+        std::strcpy(settings.solver_name, "CG");
+      } else if (tealeaf_strmatch(value, "cheby")) {
+        settings.solver = Solver::CHEBY_SOLVER;
+        std::strcpy(settings.solver_name, "Chebyshev");
+      } else if (tealeaf_strmatch(value, "ppcg")) {
+        settings.solver = Solver::PPCG_SOLVER;
+        std::strcpy(settings.solver_name, "PPCG");
+      } else if (tealeaf_strmatch(value, "jacobi")) {
+        settings.solver = Solver::JACOBI_SOLVER;
+        std::strcpy(settings.solver_name, "Jacobi");
+      } else {
+        std::fprintf(stderr, "Unknown solver: %s\n", value);
+        finalise_comms();
+        std::exit(EXIT_FAILURE);
+      }
     } else if (tealeaf_strmatch(argv[aa], "-x")) {
-      if (aa + 1 == argc) break;
-      settings.grid_x_cells = std::atoi(argv[aa]);
+      settings.grid_x_cells = read_positive_integer(aa, argc, argv);
     } else if (tealeaf_strmatch(argv[aa], "-y")) {
-      if (aa + 1 == argc) break;
-      settings.grid_y_cells = std::atoi(argv[aa]);
+      settings.grid_y_cells = read_positive_integer(aa, argc, argv);
     } else if (tealeaf_strmatch(argv[aa], "--staging-buffer")) {
-      if (aa + 1 == argc) break;
-      if (tealeaf_strmatch(argv[aa + 1], "true")) settings.staging_buffer_preference = StagingBuffer::ENABLE;
-      if (tealeaf_strmatch(argv[aa + 1], "false")) settings.staging_buffer_preference = StagingBuffer::DISABLE;
-      if (tealeaf_strmatch(argv[aa + 1], "auto ")) settings.staging_buffer_preference = StagingBuffer::AUTO;
+      const char *value = read_argument(aa, argc, argv);
+      if (tealeaf_strmatch(value, "true")) settings.staging_buffer_preference = StagingBuffer::ENABLE;
+      else if (tealeaf_strmatch(value, "false"))
+        settings.staging_buffer_preference = StagingBuffer::DISABLE;
+      else if (tealeaf_strmatch(value, "auto"))
+        settings.staging_buffer_preference = StagingBuffer::AUTO;
+      else {
+        std::fprintf(stderr, "Unknown staging-buffer value: %s\n", value);
+        finalise_comms();
+        std::exit(EXIT_FAILURE);
+      }
     } else if (tealeaf_strmatch(argv[aa], "-d") || tealeaf_strmatch(argv[aa], "--device")) {
-      if (aa + 1 == argc) break;
-      settings.device_selector = argv[aa + 1];
+      settings.device_selector = read_argument(aa, argc, argv);
     } else if (tealeaf_strmatch(argv[aa], "--problems") || tealeaf_strmatch(argv[aa], "-p")) {
-      if (aa + 1 == argc) break;
-      settings.test_problem_filename = argv[aa + 1];
+      replace_string(settings.test_problem_filename, read_argument(aa, argc, argv));
     } else if (tealeaf_strmatch(argv[aa], "--in") || tealeaf_strmatch(argv[aa], "-i") || tealeaf_strmatch(argv[aa], "--file") ||
                tealeaf_strmatch(argv[aa], "-f")) {
-      if (aa + 1 == argc) break;
-      settings.tea_in_filename = argv[aa + 1];
+      replace_string(settings.tea_in_filename, read_argument(aa, argc, argv));
     } else if (tealeaf_strmatch(argv[aa], "--out") || tealeaf_strmatch(argv[aa], "-o")) {
-      if (aa + 1 == argc) break;
-      settings.tea_out_filename = argv[aa + 1];
+      replace_string(settings.tea_out_filename, read_argument(aa, argc, argv));
     } else if (tealeaf_strmatch(argv[aa], "-help") || tealeaf_strmatch(argv[aa], "--help") || tealeaf_strmatch(argv[aa], "-h")) {
-      print_and_log(settings, "tealeaf <options>\n");
-      print_and_log(settings, "options:\n");
-      print_and_log(settings, "\t-solver, --solver, -s:\n");
-      print_and_log(settings, "\t\tCan be 'cg', 'cheby', 'ppcg', or 'jacobi'\n");
-      print_and_log(settings, "\t-p, --problems:\n");
-      print_and_log(settings, "\t\tProblems file path'\n");
-      print_and_log(settings, "\t-i, --in, -f, --file:\n");
-      print_and_log(settings, "\t\tInput deck file path'\n");
-      print_and_log(settings, "\t-o, --out:\n");
-      print_and_log(settings, "\t\tOutput file path'\n");
-      print_and_log(settings, "\t--staging-buffer:\n");
-      print_and_log(settings, "\t\tIf true, use a host staging buffer for device-host MPI halo exchange.'\n");
-      print_and_log(settings, "\t\tIf false, use device pointers directly for MPI halo exchange.'\n");
-      print_and_log(settings, "\t\tDefaults to auto which elides the buffer if a device-aware (i.e CUDA-aware) is used.'\n");
-      print_and_log(settings, "\t\tThis option is no-op for CPU-only models.'\n");
-      print_and_log(settings, "\t\tSetting this to false on an MPI that is not device-aware may cause a segfault.'\n");
+      print_help();
       finalise_comms();
       std::exit(EXIT_SUCCESS);
+    } else {
+      std::fprintf(stderr, "Unknown option: %s\n", argv[aa]);
+      print_help();
+      finalise_comms();
+      std::exit(EXIT_FAILURE);
     }
   }
 }
@@ -108,6 +166,14 @@ int main(int argc, char **argv) {
   initialise_model_info(settings);
   State *states{};
   read_config(settings, &states);
+  // Reapply options whose values intentionally override the input deck.
+  settings_overload(settings, argc, argv);
+  settings.dx = (settings.grid_x_max - settings.grid_x_min) / settings.grid_x_cells;
+  settings.dy = (settings.grid_y_max - settings.grid_y_min) / settings.grid_y_cells;
+  if (settings.ppcg_inner_steps == -1 && settings.solver == Solver::PPCG_SOLVER) {
+    const double cells = static_cast<double>(settings.grid_x_cells) * settings.grid_y_cells;
+    settings.ppcg_inner_steps = 4 * static_cast<int>(std::sqrt(std::sqrt(cells)));
+  }
 
   switch (settings.staging_buffer_preference) {
     case StagingBuffer::ENABLE: settings.staging_buffer = true; break;
@@ -177,7 +243,7 @@ int main(int argc, char **argv) {
   }
 
   print_and_log(settings, "Result:\n");
-  print_and_log(settings, " - Problem: %dx%d@%d\n", settings.grid_x_cells, settings.grid_y_cells, settings.end_step);
+  print_and_log(settings, " - Problem: %dx%d@%d\n", settings.grid_x_cells, settings.grid_y_cells, settings.completed_steps);
   print_and_log(settings, " - Outcome: %s\n", (!valid ? "FAILED" : "PASSED"));
 
   // Finalise the kernel
@@ -186,12 +252,20 @@ int main(int argc, char **argv) {
   // Finalise each individual chunk
   for (int cc = 0; cc < settings.num_chunks_per_rank; ++cc) {
     finalise_chunk(&(chunks[cc]));
-    std::free(&(chunks[cc]));
   }
+  std::free(chunks);
+  std::free(states);
 
   profiler_finalise(&settings.kernel_profile);
   profiler_finalise(&settings.application_profile);
   profiler_finalise(&settings.wallclock_profile);
+
+  if (settings.tea_out_fp) std::fclose(settings.tea_out_fp);
+  std::free(settings.fields_to_exchange);
+  std::free(settings.solver_name);
+  std::free(settings.tea_in_filename);
+  std::free(settings.tea_out_filename);
+  std::free(settings.test_problem_filename);
 
   // Finalise the application
   finalise_comms();

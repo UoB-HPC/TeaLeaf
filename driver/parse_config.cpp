@@ -1,5 +1,8 @@
 #include "application.h"
 #include <cctype>
+#include <cerrno>
+#include <climits>
+#include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <vector>
@@ -10,6 +13,7 @@ void read_value(const char *line, const char *word, char *value);
 bool starts_with(const char *word, const char *line);
 bool starts_get_double(const char *key, const char *line, char *word, double *value);
 bool starts_get_int(const char *key, const char *line, char *word, int *value);
+double parse_double(const char *key, const char *word);
 
 // Read configuration file
 void read_config(Settings &settings, State **states) {
@@ -85,64 +89,87 @@ void read_settings(FILE *tea_in, Settings &settings) {
     if (settings.grid_x_cells == DEF_GRID_X_CELLS && starts_get_int("x_cells", line, word.data(), &settings.grid_x_cells)) continue;
     if (settings.grid_y_cells == DEF_GRID_Y_CELLS && starts_get_int("y_cells", line, word.data(), &settings.grid_y_cells)) continue;
     if (starts_get_int("summary_frequency", line, word.data(), &settings.summary_frequency)) continue;
-    if (starts_get_int("presteps", line, word.data(), &settings.presteps)) continue;
-    if (starts_get_int("ppcg_inner_steps", line, word.data(), &settings.ppcg_inner_steps)) continue;
-    if (starts_get_double("epslim", line, word.data(), &settings.eps_lim)) continue;
-    if (starts_get_int("max_iters", line, word.data(), &settings.max_iters)) continue;
-    if (starts_get_double("eps", line, word.data(), &settings.eps)) continue;
-    if (starts_get_int("num_chunks_per_rank", line, word.data(), &settings.num_chunks_per_rank)) continue;
+    if (starts_get_int("tl_ch_cg_presteps", line, word.data(), &settings.presteps) ||
+        starts_get_int("presteps", line, word.data(), &settings.presteps))
+      continue;
+    if (starts_get_int("tl_ppcg_inner_steps", line, word.data(), &settings.ppcg_inner_steps) ||
+        starts_get_int("ppcg_inner_steps", line, word.data(), &settings.ppcg_inner_steps))
+      continue;
+    if (starts_get_double("tl_ch_cg_epslim", line, word.data(), &settings.eps_lim) ||
+        starts_get_double("epslim", line, word.data(), &settings.eps_lim))
+      continue;
+    if (starts_get_int("tl_max_iters", line, word.data(), &settings.max_iters) ||
+        starts_get_int("max_iters", line, word.data(), &settings.max_iters))
+      continue;
+    if (starts_get_double("tl_eps", line, word.data(), &settings.eps) || starts_get_double("eps", line, word.data(), &settings.eps))
+      continue;
+    if (starts_get_int("tiles_per_task", line, word.data(), &settings.num_chunks_per_rank) ||
+        starts_get_int("num_chunks_per_rank", line, word.data(), &settings.num_chunks_per_rank))
+      continue;
     if (starts_get_int("halo_depth", line, word.data(), &settings.halo_depth)) continue;
+    if (starts_get_int("test_problem", line, word.data(), &settings.test_problem)) {
+      settings.check_result = settings.test_problem > 0;
+      continue;
+    }
 
     // Parse the switches
     if (starts_with("check_result", line)) {
       settings.check_result = true;
       continue;
     }
-    if (starts_with("errswitch", line)) {
+    if (starts_with("tl_ch_cg_errswitch", line) || starts_with("errswitch", line)) {
       settings.error_switch = true;
       continue;
     }
-    if (starts_with("preconditioner_on", line)) {
-      settings.preconditioner = true;
-      continue;
-    }
     if (starts_with("use_fortran_kernels", line)) {
-      settings.kernel_language = Kernel_Language::FORTRAN;
-      continue;
+      die(__LINE__, __FILE__, "Fortran kernels are not available in this C++ port.\n");
     }
     if (starts_with("use_c_kernels", line)) {
       settings.kernel_language = Kernel_Language::C;
       continue;
     }
-    if (starts_with("use_jacobi", line)) {
+    if (starts_with("tl_use_jacobi", line) || starts_with("use_jacobi", line)) {
       settings.solver = Solver::JACOBI_SOLVER;
       strcpy(settings.solver_name, "Jacobi");
       continue;
     }
-    if (starts_with("use_cg", line)) {
+    if (starts_with("tl_use_cg", line) || starts_with("use_cg", line)) {
       settings.solver = Solver::CG_SOLVER;
       strcpy(settings.solver_name, "CG");
       continue;
     }
-    if (starts_with("use_chebyshev", line)) {
+    if (starts_with("tl_use_chebyshev", line) || starts_with("use_chebyshev", line)) {
       settings.solver = Solver::CHEBY_SOLVER;
       strcpy(settings.solver_name, "Chebyshev");
       continue;
     }
-    if (starts_with("use_ppcg", line)) {
+    if (starts_with("tl_use_ppcg", line) || starts_with("use_ppcg", line)) {
       settings.solver = Solver::PPCG_SOLVER;
       strcpy(settings.solver_name, "PPCG");
       continue;
     }
-    if (starts_with("coefficient_density", line)) {
+    if (starts_with("tl_coefficient_density", line) || starts_with("coefficient_density", line)) {
       settings.coefficient = CONDUCTIVITY;
       continue;
     }
-    if (starts_with("coefficient_inverse_density", line)) {
+    if (starts_with("tl_coefficient_inverse_density", line) || starts_with("coefficient_inverse_density", line)) {
       settings.coefficient = RECIP_CONDUCTIVITY;
       continue;
     }
+    if (starts_with("tl_check_result", line) || starts_with("tl_preconditioner_type", line) || starts_with("preconditioner_on", line) ||
+        starts_with("tiles_per_problem", line) || starts_with("sub_tiles_per_tile", line) || starts_with("reflective_boundary", line) ||
+        starts_with("visit_frequency", line) || starts_with("verbose_on", line)) {
+      die(__LINE__, __FILE__, "Unsupported UK-MAC input option: %s", line);
+    }
   }
+  std::free(line);
+
+  if (settings.grid_x_cells <= 0 || settings.grid_y_cells <= 0) die(__LINE__, __FILE__, "Cell counts must be positive.\n");
+  if (settings.dt_init <= 0.0) die(__LINE__, __FILE__, "The initial timestep must be positive.\n");
+  if (settings.end_step < 0 || settings.end_time < 0.0) die(__LINE__, __FILE__, "End limits cannot be negative.\n");
+  if (settings.summary_frequency < 0) die(__LINE__, __FILE__, "Summary frequency cannot be negative.\n");
+  if (settings.num_chunks_per_rank <= 0) die(__LINE__, __FILE__, "Chunks per rank must be positive.\n");
+  if (settings.halo_depth <= 0) die(__LINE__, __FILE__, "Halo depth must be positive.\n");
 
   // Set the cell widths now
   settings.dx = (settings.grid_x_max - settings.grid_x_min) / (double)settings.grid_x_cells;
@@ -167,6 +194,8 @@ int read_states(FILE *tea_in, Settings &settings, State **states) {
 
   rewind(tea_in);
 
+  if (num_states < 1) die(__LINE__, __FILE__, "No states are defined.\n");
+
   // Pre-initialise the set of states
   *states = (State *)malloc(sizeof(State) * num_states);
   for (int ss = 0; ss < num_states; ++ss) {
@@ -187,6 +216,7 @@ int read_states(FILE *tea_in, Settings &settings, State **states) {
 
     // State found
     if (starts_get_int("state", line, word.data(), &state_num)) {
+      if (state_num < 1 || state_num > num_states) die(__LINE__, __FILE__, "Invalid state number %d.\n", state_num);
       State *state = &((*states)[state_num - 1]);
 
       if (state->defined) {
@@ -194,37 +224,45 @@ int read_states(FILE *tea_in, Settings &settings, State **states) {
       }
 
       read_value(line, "density", word.data());
-      state->density = atof(word.data());
+      state->density = parse_double("density", word.data());
       read_value(line, "energy", word.data());
-      state->energy = atof(word.data());
+      state->energy = parse_double("energy", word.data());
 
       // State 1 is the default state so geometry irrelevant
       if (state_num > 1) {
         read_value(line, "xmin", word.data());
-        state->x_min = atof(word.data()) + settings.dx / 100.0;
+        state->x_min = parse_double("xmin", word.data()) + settings.dx / 100.0;
         read_value(line, "ymin", word.data());
-        state->y_min = atof(word.data()) + settings.dy / 100.0;
+        state->y_min = parse_double("ymin", word.data()) + settings.dy / 100.0;
         read_value(line, "xmax", word.data());
-        state->x_max = atof(word.data()) - settings.dx / 100.0;
+        state->x_max = parse_double("xmax", word.data()) - settings.dx / 100.0;
         read_value(line, "ymax", word.data());
-        state->y_max = atof(word.data()) - settings.dy / 100.0;
+        state->y_max = parse_double("ymax", word.data()) - settings.dy / 100.0;
 
         read_value(line, "geometry", word.data());
 
         if (tealeaf_strmatch(word.data(), "rectangle")) {
           state->geometry = Geometry::RECTANGULAR;
-        } else if (tealeaf_strmatch(word.data(), "circular")) {
+        } else if (tealeaf_strmatch(word.data(), "circle") || tealeaf_strmatch(word.data(), "circular")) {
           state->geometry = Geometry::CIRCULAR;
 
           read_value(line, "radius", word.data());
-          state->radius = atof(word.data());
+          state->radius = parse_double("radius", word.data());
         } else if (tealeaf_strmatch(word.data(), "point")) {
           state->geometry = Geometry::POINT;
+        } else {
+          die(__LINE__, __FILE__, "Unknown geometry: %s\n", word.data());
         }
       }
 
       state->defined = true;
     }
+  }
+
+  std::free(line);
+
+  for (int ss = 0; ss < num_states; ++ss) {
+    if (!(*states)[ss].defined) die(__LINE__, __FILE__, "State number %d is not defined.\n", ss + 1);
   }
 
   return num_states;
@@ -237,7 +275,7 @@ bool starts_with(const char *word, const char *line) {
 
   for (int ll = 0; ll < (int)strlen(line); ++ll) {
     // Skip leading spaces
-    if (!num_matched && isspace(line[ll])) {
+    if (!num_matched && std::isspace(static_cast<unsigned char>(line[ll]))) {
       continue;
     }
 
@@ -245,7 +283,8 @@ bool starts_with(const char *word, const char *line) {
     if (line[ll] != word[num_matched]) {
       return false;
     } else if (++num_matched == word_len) {
-      return true;
+      const char next = line[ll + 1];
+      return next == '\0' || next == '=' || std::isspace(static_cast<unsigned char>(next));
     }
   }
 
@@ -254,19 +293,20 @@ bool starts_with(const char *word, const char *line) {
 
 // Parses key-value pairs for state in configuration file
 void read_value(const char *line, const char *word, char *value) {
-  int num_matched = 0;
-
-  // Step through the line, find the token and parse value
-  for (int ll = 0; ll < (int)strlen(line); ++ll) {
-    if (num_matched == (int)strlen(word)) {
-      // Now match value, nest for correctness
-      if (isalpha(line[ll]) || isdigit(line[ll])) {
-        sscanf(&(line[ll]), "%s", value);
-        return;
-      }
-    } else {
-      num_matched = (line[ll] == word[num_matched]) ? num_matched + 1 : 0;
+  const std::size_t word_len = std::strlen(word);
+  const char *cursor = line;
+  while ((cursor = std::strstr(cursor, word))) {
+    const bool starts_token = cursor == line || std::isspace(static_cast<unsigned char>(cursor[-1]));
+    const char after_word = cursor[word_len];
+    const bool ends_token = after_word == '=' || std::isspace(static_cast<unsigned char>(after_word));
+    if (starts_token && ends_token) {
+      cursor += word_len;
+      while (*cursor == '=' || std::isspace(static_cast<unsigned char>(*cursor)))
+        ++cursor;
+      if (*cursor && std::sscanf(cursor, "%s", value) == 1) return;
+      break;
     }
+    cursor += word_len;
   }
 
   die(__LINE__, __FILE__, "Failed to find a value for key '%s'\n", word);
@@ -276,7 +316,13 @@ void read_value(const char *line, const char *word, char *value) {
 bool starts_get_int(const char *key, const char *line, char *word, int *value) {
   if (starts_with(key, line)) {
     read_value(line, key, word);
-    *value = atoi(word);
+    char *end = nullptr;
+    errno = 0;
+    const long parsed = std::strtol(word, &end, 10);
+    if (errno || !end || *end || parsed < INT_MIN || parsed > INT_MAX) {
+      die(__LINE__, __FILE__, "Invalid integer for '%s': %s\n", key, word);
+    }
+    *value = static_cast<int>(parsed);
     return true;
   }
 
@@ -287,9 +333,19 @@ bool starts_get_int(const char *key, const char *line, char *word, int *value) {
 bool starts_get_double(const char *key, const char *line, char *word, double *value) {
   if (starts_with(key, line)) {
     read_value(line, key, word);
-    *value = atof(word);
+    *value = parse_double(key, word);
     return true;
   }
 
   return false;
+}
+
+double parse_double(const char *key, const char *word) {
+  char *end = nullptr;
+  errno = 0;
+  const double parsed = std::strtod(word, &end);
+  if (errno || !end || *end || !std::isfinite(parsed)) {
+    die(__LINE__, __FILE__, "Invalid real number for '%s': %s\n", key, word);
+  }
+  return parsed;
 }

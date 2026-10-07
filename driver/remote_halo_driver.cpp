@@ -52,27 +52,28 @@ void remote_halo_driver(Chunk *chunks, Settings &settings, int depth) {
 
   int num_messages = 0;
 
-  // TODO: THE TAGS NEED TO BE DIFFERENT BY CHUNK ??
-
   // Pack lr buffers and send messages
   for (int cc = 0; cc < settings.num_chunks_per_rank; ++cc) {
+    const int global_chunk = settings.rank * settings.num_chunks_per_rank + cc;
     if (chunks[cc].neighbours[CHUNK_LEFT] != EXTERNAL_FACE) {
+      const int neighbour = chunks[cc].neighbours[CHUNK_LEFT];
       int buffer_len = invoke_pack_or_unpack(&(chunks[cc]), settings, CHUNK_LEFT, depth, chunks[cc].y, true, chunks[cc].left_send);
-      run_send_recv_halo(&chunks[cc], settings,                                      //
-                         chunks[cc].left_send, chunks[cc].left_recv,                 //
-                         chunks[cc].staging_left_send, chunks[cc].staging_left_recv, //
-                         buffer_len, chunks[cc].neighbours[CHUNK_LEFT], 0, 1,        //
+      run_send_recv_halo(&chunks[cc], settings,                                                         //
+                         chunks[cc].left_send, chunks[cc].left_recv,                                    //
+                         chunks[cc].staging_left_send, chunks[cc].staging_left_recv,                    //
+                         buffer_len, neighbour / settings.num_chunks_per_rank, global_chunk, neighbour, //
                          &(requests[num_messages]), &(requests[num_messages + 1]));
 
       num_messages += 2;
     }
 
     if (chunks[cc].neighbours[CHUNK_RIGHT] != EXTERNAL_FACE) {
+      const int neighbour = chunks[cc].neighbours[CHUNK_RIGHT];
       int buffer_len = invoke_pack_or_unpack(&(chunks[cc]), settings, CHUNK_RIGHT, depth, chunks[cc].y, true, chunks[cc].right_send);
-      run_send_recv_halo(&chunks[cc], settings,                                        //
-                         chunks[cc].right_send, chunks[cc].right_recv,                 //
-                         chunks[cc].staging_right_send, chunks[cc].staging_right_recv, //
-                         buffer_len, chunks[cc].neighbours[CHUNK_RIGHT], 1, 0,         //
+      run_send_recv_halo(&chunks[cc], settings,                                                         //
+                         chunks[cc].right_send, chunks[cc].right_recv,                                  //
+                         chunks[cc].staging_right_send, chunks[cc].staging_right_recv,                  //
+                         buffer_len, neighbour / settings.num_chunks_per_rank, global_chunk, neighbour, //
                          &(requests[num_messages]), &(requests[num_messages + 1]));
 
       num_messages += 2;
@@ -110,23 +111,26 @@ void remote_halo_driver(Chunk *chunks, Settings &settings, int depth) {
 
   // Pack tb buffers and send messages
   for (int cc = 0; cc < settings.num_chunks_per_rank; ++cc) {
+    const int global_chunk = settings.rank * settings.num_chunks_per_rank + cc;
     if (chunks[cc].neighbours[CHUNK_BOTTOM] != EXTERNAL_FACE) {
+      const int neighbour = chunks[cc].neighbours[CHUNK_BOTTOM];
       int buffer_len = invoke_pack_or_unpack(&(chunks[cc]), settings, CHUNK_BOTTOM, depth, chunks[cc].x, true, chunks[cc].bottom_send);
-      run_send_recv_halo(&chunks[cc], settings,                                          //
-                         chunks[cc].bottom_send, chunks[cc].bottom_recv,                 //
-                         chunks[cc].staging_bottom_send, chunks[cc].staging_bottom_recv, //
-                         buffer_len, chunks[cc].neighbours[CHUNK_BOTTOM], 0, 1,          //
+      run_send_recv_halo(&chunks[cc], settings,                                                         //
+                         chunks[cc].bottom_send, chunks[cc].bottom_recv,                                //
+                         chunks[cc].staging_bottom_send, chunks[cc].staging_bottom_recv,                //
+                         buffer_len, neighbour / settings.num_chunks_per_rank, global_chunk, neighbour, //
                          &(requests[num_messages]), &(requests[num_messages + 1]));
 
       num_messages += 2;
     }
 
     if (chunks[cc].neighbours[CHUNK_TOP] != EXTERNAL_FACE) {
+      const int neighbour = chunks[cc].neighbours[CHUNK_TOP];
       int buffer_len = invoke_pack_or_unpack(&(chunks[cc]), settings, CHUNK_TOP, depth, chunks[cc].x, true, chunks[cc].top_send);
-      run_send_recv_halo(&chunks[cc], settings,                                    //
-                         chunks[cc].top_send, chunks[cc].top_recv,                 //
-                         chunks[cc].staging_top_send, chunks[cc].staging_top_recv, //
-                         buffer_len, chunks[cc].neighbours[CHUNK_TOP], 1, 0,       //
+      run_send_recv_halo(&chunks[cc], settings,                                                         //
+                         chunks[cc].top_send, chunks[cc].top_recv,                                      //
+                         chunks[cc].staging_top_send, chunks[cc].staging_top_recv,                      //
+                         buffer_len, neighbour / settings.num_chunks_per_rank, global_chunk, neighbour, //
                          &(requests[num_messages]), &(requests[num_messages + 1]));
 
       num_messages += 2;

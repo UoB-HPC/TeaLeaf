@@ -1,14 +1,16 @@
 TeaLeaf
 ====
 
-A C++based implementation of the TeaLeaf heat conduction mini-app.
+[![Linux](https://github.com/UoB-HPC/TeaLeaf/actions/workflows/linux.yml/badge.svg)](https://github.com/UoB-HPC/TeaLeaf/actions/workflows/linux.yml)
+
+A C++-based implementation of the TeaLeaf heat conduction mini-app.
 This implementation of TeaLeaf replicates the functionality of the reference version of
 TeaLeaf (<https://github.com/UK-MAC/TeaLeaf_ref>).
 
 This implementation has support for building with and without MPI.
 When MPI is enabled, all models will adjust accordingly for asynchronous MPI send/recv.
 
-This implementation supersedes out past porting efforts:
+This implementation supersedes our past porting efforts:
 
 - <https://github.com/UoB-HPC/TeaLeaf-Kokkos>
 - <https://github.com/UoB-HPC/TeaLeaf-OpenMP4>
@@ -41,7 +43,7 @@ against is required.
 
 ### CMake
 
-The project supports building with CMake >= 3.13.0, which can be installed without root via
+The project supports building with CMake >= 3.14.0, which can be installed without root via
 the [official script](https://cmake.org/download/).
 
 Each implementation (programming model) is built as follows:
@@ -62,6 +64,7 @@ $ ./build/<model>-tealeaf
 
 The `MODEL` option selects one implementation of TeaLeaf to build.
 The source for each model's implementations are located in `./src/<model>`.
+
 
 ## File Input
 
@@ -93,38 +96,26 @@ is ignored. Areas not covered by other defined states receive the energy and den
 
 - `state <I> density <R> energy <R> geometry point xmin <R> ymin <R>` - Defines a cell in the domain with the specified energy and density. Note that the generator is simple and the defined state completely fills a cell with which it intersects. In the case of over lapping regions, the last state takes priority. Hence a circular region will have a stepped interface and a point data will fill the cell it lies in with its defined energy and density.
 
-- `visit_frequency <I>` - This is the step frequency of visualisations dumps. The files produced are text base VTK files and
-are easily viewed in an application such as ViSit. The default is to output no graphical data. Note
-that the overhead of output is high, so should not be invoked when performance benchmarking is being
-carried out.
 - `summary_frequency <I>` - This is the step frequency of summary dumps. This requires a global reduction and associated
 synchronisation, so performance will be slightly affected as the frequency is increased. The default
-is for a summary dump to be produced every 10 steps and at the end of the simulation.
+is for a summary dump to be produced every 10 steps and at the end of the simulation. Set it to zero
+to disable intermediate summaries.
 - `tl_ch_cg_presteps  <I>` - This option specifies the number of Conjugate Gradient iterations completed before the Chebyshev
 method is started. This is necessary to provide approximate minimum and maximum eigen values to
-start the Chebyshev method. The default value is 30.
-- `tl_ppcg_inner_steps <I>` - Number of inner steps to run when using the PPCG solver. The default value is 10.
+start the Chebyshev method. The default value is 25, matching the UK-MAC reference implementation.
+- `tl_ppcg_inner_steps <I>` - Number of inner steps to run when using the PPCG solver. When omitted,
+the UK-MAC heuristic derives it from the problem size.
 - `tl_ch_cg_errswitch` - If enabled alongside Chebshev/PPCG solver, switch when a certain error is reached instead of when a
 certain number of steps is reached. The default for this is off.
 - `tl_ch_cg_epslim` - Default error to switch from CG to Chebyshev when using Chebyshev solver with the tl_cg_ch_errswitch
-option enabled. The default value is 1e-5.
-
-- `tl_check_result` - After the solver reaches convergence, calculate ||b-Ax|| to make sure the solver has actually
-converged. The default for this option is off.
-
-- `tl_preconditioner_type` - This keyword invokes the pre-conditioner. Options are:
-  - `none` - No preconditioner.
-  - `jac_diag` - Diagonal Jacobi preconditioner. Typically reduces condition number by around 5% but
-  may not reduce time to solution
-  - `jac_block` - Block Jacobi preconditioner (with a currently hardcoded block size of 4). Typically
-  reduces the condition number by around 50% but may not reduce time to solution
+option enabled. The default value is 1.0, matching the UK-MAC reference implementation.
+- `num_chunks_per_rank <I>` or `tiles_per_task <I>` - Decompose each MPI rank into this many chunks.
+- `check_result` - Compare the final temperature with the matching entry in `tea.problems`.
 - `tl_use_jacobi` - This keyword selects the Jacobi method to solve the linear system. Note that this a very slowly converging method compared to other options. This is the default method is no method is explicitly selected.
 - `tl_use_cg` - This keyword selects the Conjugate Gradient method to solve the linear system.
 - `tl_use_ppcg` - This keyword selects the Conjugate Gradient method to solve the linear system.
 - `tl_use_chebyshev` - This keyword selects the Chebyshev method to solve the linear system.
-- `profiler_on` - This option does not currently work. Instead compile with the `-DENABLE_PROFILING` flag being passed
-to the OPTIONS parameter specified to the make command.
-- `verbose_on` - The option prints out extra information such as residual per iteration of a solve.
+- Profiling is selected at compile time with `-DENABLE_PROFILING=ON`.
 - `tl_max_iters <I>` - This option provides an upper limit of the number of iterations used for the linear solve in a step.
 If this limit is reached, then the solution vector at this iteration is used as the solution, even
 if the convergence criteria has not been met. For this reason, care should be taken in the
@@ -141,6 +132,10 @@ repository. Note that the known solution for an iterative solver is not an analy
 the solution for a single core simulation with IEEE options enabled with the Intel compiler and a
 strict convergence of 1.0e-15. The difference to the expected solution is reported at the end of the
 simulation in the tea.out file. There is no default value for this option.
+
+The reference-only options `tl_check_result`, `tl_preconditioner_type`, `preconditioner_on`,
+`tiles_per_problem`, `sub_tiles_per_tile`, `reflective_boundary`, `visit_frequency`, and `verbose_on`
+are not implemented. TeaLeaf rejects them instead of silently running with different semantics.
 
 # Licence
 

@@ -25,8 +25,11 @@ void set_default_settings(Settings &settings) {
   settings.eps = DEF_EPS;
   settings.end_time = DEF_END_TIME;
   settings.end_step = DEF_END_STEP;
+  settings.completed_steps = 0;
+  settings.test_problem = 0;
   settings.summary_frequency = DEF_SUMMARY_FREQUENCY;
   settings.solver = DEF_SOLVER;
+  settings.kernel_language = Kernel_Language::C;
   settings.staging_buffer_preference = DEF_STAGING_BUFFER;
   settings.model_name = "";
   settings.model_kind = ModelKind::Host;
@@ -48,6 +51,7 @@ void set_default_settings(Settings &settings) {
   settings.wallclock_profile = profiler_initialise();
   settings.fields_to_exchange = (bool *)malloc(sizeof(bool) * NUM_FIELDS);
   settings.solver_name = (char *)malloc(sizeof(char) * MAX_CHAR_LEN);
+  std::strcpy(settings.solver_name, "Jacobi");
   settings.device_selector = nullptr;
 }
 

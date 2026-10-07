@@ -328,3 +328,86 @@ target_compile_definitions(${EXE_NAME} PRIVATE)
 set_target_properties(${EXE_NAME} PROPERTIES OUTPUT_NAME "${BIN_NAME}")
 
 install(TARGETS ${EXE_NAME} DESTINATION bin)
+
+include(CTest)
+if (BUILD_TESTING)
+    set(case_timeout 60)
+    if (SYCL_COMPILER STREQUAL "ADAPTIVECPP")
+        set(case_timeout 180)
+    endif ()
+
+    function(add_solution_case name deck)
+        cmake_parse_arguments(CASE "" "" "ARGS;OUTPUT" ${ARGN})
+        set(ranks 1)
+        if (ENABLE_MPI AND MPIEXEC_EXECUTABLE)
+            list(APPEND ranks 2)
+        endif ()
+        foreach(rank_count IN LISTS ranks)
+            set(test "solution_${name}")
+            set(threads 2)
+            if (rank_count EQUAL 2)
+                string(APPEND test "_mpi")
+                set(threads 1)
+            endif ()
+
+            set(directory "${CMAKE_CURRENT_BINARY_DIR}/tests/${test}")
+            file(MAKE_DIRECTORY "${directory}")
+            set(input "${directory}/tea.in")
+            set(report "${directory}/tea.out")
+            file(WRITE "${input}" "${deck}")
+
+            set(application_args --file "${input}" --out "${report}"
+                --problems "${PROJECT_SOURCE_DIR}/tea.problems" --staging-buffer auto ${CASE_ARGS})
+            set(command "$<TARGET_FILE:${EXE_NAME}>" ${application_args})
+            if (rank_count EQUAL 2)
+                set(command "${MPIEXEC_EXECUTABLE}" ${MPIEXEC_NUMPROC_FLAG} 2 ${MPIEXEC_PREFLAGS}
+                    "$<TARGET_FILE:${EXE_NAME}>" ${MPIEXEC_POSTFLAGS} ${application_args})
+            endif ()
+
+            set(expected_output " - Total ranks: ${rank_count}" " - Outcome: PASSED" ${CASE_OUTPUT})
+            add_test(NAME ${test}
+                COMMAND ${CMAKE_COMMAND} "-DTEST_COMMAND=${command}" "-DEXPECT_EXIT=0"
+                        "-DEXPECT_OUTPUT=${expected_output}" "-DREPORT=${report}"
+                        -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/check.cmake")
+            set_tests_properties(${test} PROPERTIES
+                WORKING_DIRECTORY "${directory}" TIMEOUT ${case_timeout} PROCESSORS 2
+                ENVIRONMENT "OMP_NUM_THREADS=${threads};ACPP_APPDB_DIR=${directory}/jit")
+        endforeach ()
+    endfunction()
+
+    set(reference_input "${PROJECT_SOURCE_DIR}/Benchmarks/tea_bm_1.in")
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+        "${reference_input}" "${PROJECT_SOURCE_DIR}/tea.problems")
+    file(READ "${reference_input}" reference_deck)
+    add_solution_case(reference "${reference_deck}"
+        OUTPUT " - Problem: 10x10@10" " - Host-Device halo exchange staging buffer:  true")
+
+    string(REPLACE "end_step=10" "end_step=1" override_deck "${reference_deck}")
+    add_solution_case(cli_override "${override_deck}" ARGS -x 64 -y 64 --solver cg
+        OUTPUT " - Problem: 64x64@1" " - Solver:   CG")
+
+    string(REPLACE "*endtea" "num_chunks_per_rank=2\n*endtea" multichunk_deck "${reference_deck}")
+    add_solution_case(multichunk "${multichunk_deck}" OUTPUT " - Problem: 10x10@10")
+
+    string(REPLACE "end_step=10" "end_step=10\nend_time=0.008\nsummary_frequency=0" end_time_deck "${reference_deck}")
+    string(REGEX REPLACE "test_problem[^\n]*\n" "" end_time_deck "${end_time_deck}")
+    add_solution_case(end_time "${end_time_deck}" OUTPUT " - Problem: 10x10@2")
+
+    string(REPLACE "max_iters=10000" "tl_max_iters=10000" upstream_deck "${reference_deck}")
+    string(REPLACE "use_cg" "tl_use_cg" upstream_deck "${upstream_deck}")
+    string(REPLACE "eps 1.0e-15" "tl_eps 1.0e-15" upstream_deck "${upstream_deck}")
+    add_solution_case(upstream_input "${upstream_deck}" OUTPUT " - Solver:   CG")
+
+    add_test(NAME cli_help
+        COMMAND ${CMAKE_COMMAND} "-DTEST_COMMAND=$<TARGET_FILE:${EXE_NAME}>;--help"
+                "-DEXPECT_EXIT=0" "-DEXPECT_OUTPUT=Usage: tealeaf"
+                -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/check.cmake")
+    add_test(NAME cli_invalid
+        COMMAND ${CMAKE_COMMAND} "-DTEST_COMMAND=$<TARGET_FILE:${EXE_NAME}>;--staging-buffer;invalid"
+                "-DEXPECT_EXIT=nonzero" "-DEXPECT_OUTPUT=Unknown staging-buffer value"
+                -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/check.cmake")
+    add_test(NAME cli_invalid_integer
+        COMMAND ${CMAKE_COMMAND} "-DTEST_COMMAND=$<TARGET_FILE:${EXE_NAME}>;-x;ten"
+                "-DEXPECT_EXIT=nonzero" "-DEXPECT_OUTPUT=requires a positive integer"
+                -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/check.cmake")
+endif ()

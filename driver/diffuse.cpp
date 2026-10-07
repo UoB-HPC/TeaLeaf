@@ -4,20 +4,23 @@
 
 double calc_dt(Chunk *chunks);
 void calc_min_timestep(Chunk *chunks, double *dt, int chunks_per_task);
-void solve(Chunk *chunks, Settings &settings, int tt, const double *wallclock_prev);
+double solve(Chunk *chunks, Settings &settings, int tt, double *wallclock_prev);
 
 // The main timestep loop
 bool diffuse(Chunk *chunks, Settings &settings) {
   double wallclock_prev = 0.0;
+  double time = 0.0;
   for (int tt = 0; tt < settings.end_step; ++tt) {
-    solve(chunks, settings, tt, &wallclock_prev);
+    time += solve(chunks, settings, tt, &wallclock_prev);
+    settings.completed_steps = tt + 1;
+    if (time + 1.0e-16 > settings.end_time) break;
   }
 
   return field_summary_driver(chunks, settings, true);
 }
 
 // Performs a solve for a single timestep
-void solve(Chunk *chunks, Settings &settings, int tt, const double *wallclock_prev) {
+double solve(Chunk *chunks, Settings &settings, int tt, double *wallclock_prev) {
   print_and_log(settings, "\n Timestep %d\n", tt + 1);
   profiler_start_timer(settings.wallclock_profile);
 
@@ -50,7 +53,7 @@ void solve(Chunk *chunks, Settings &settings, int tt, const double *wallclock_pr
   // Perform solve finalisation tasks
   solve_finished_driver(chunks, settings);
 
-  if (tt % settings.summary_frequency == 0) {
+  if (settings.summary_frequency > 0 && (tt + 1) % settings.summary_frequency == 0) {
     field_summary_driver(chunks, settings, false);
   }
 
@@ -60,6 +63,8 @@ void solve(Chunk *chunks, Settings &settings, int tt, const double *wallclock_pr
   print_and_log(settings, " Wallclock: \t\t%.3lfs\n", wallclock);
   print_and_log(settings, " Avg. time per cell: \t%.6e\n", (wallclock - *wallclock_prev) / (settings.grid_x_cells * settings.grid_y_cells));
   print_and_log(settings, " Error: \t\t%.6e\n", error);
+  *wallclock_prev = wallclock;
+  return dt;
 }
 
 // Calculate minimum timestep
