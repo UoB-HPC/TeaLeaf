@@ -3,7 +3,7 @@
 #include "shared.h"
 #include "sycl_shared.hpp"
 
-using namespace cl::sycl;
+using namespace sycl;
 
 // Allocates, and zeroes an individual buffer
 void allocate_buffer(double **a, int x, int y) {
@@ -14,7 +14,6 @@ void allocate_buffer(double **a, int x, int y) {
     die(__LINE__, __FILE__, "Error allocating buffer %s\n");
   }
 
-#pragma omp parallel for
   for (int jj = 0; jj < y; ++jj) {
     for (int kk = 0; kk < x; ++kk) {
       const int index = kk + jj * x;

@@ -1,8 +1,10 @@
 #pragma once
 
-#include <CL/sycl.hpp>
-
-using namespace cl;
+#if __has_include(<sycl/sycl.hpp>)
+  #include <sycl/sycl.hpp>
+#else
+  #include <CL/sycl.hpp>
+#endif
 
 using FieldBufferType = double *;
 using StagingBufferType = double *;

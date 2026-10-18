@@ -2,7 +2,7 @@
 #include "shared.h"
 #include "sycl_shared.hpp"
 
-using namespace cl::sycl;
+using namespace sycl;
 
 void field_summary_func(const int x,             //
                         const int y,             //

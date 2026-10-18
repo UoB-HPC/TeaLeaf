@@ -2,7 +2,7 @@
 #include "shared.h"
 #include "sycl_shared.hpp"
 
-using namespace cl::sycl;
+using namespace sycl;
 
 // Updates the local left halo region(s)
 void update_left(const int x,            //

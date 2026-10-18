@@ -5,7 +5,7 @@
 #include "shared.h"
 #include "sycl_shared.hpp"
 
-using namespace cl::sycl;
+using namespace sycl;
 
 // Packs the top halo buffer(s)
 void pack_top(const int x,            //

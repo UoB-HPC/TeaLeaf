@@ -2,7 +2,7 @@
 #include "shared.h"
 #include "sycl_shared.hpp"
 
-using namespace cl::sycl;
+using namespace sycl;
 
 // Initialises Sd
 void ppcg_init(const int x, const int y, const size_t halo_depth, const double theta, SyclBuffer &sdBuff, SyclBuffer &rBuff,

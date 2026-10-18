@@ -1,8 +1,12 @@
 #pragma once
 
-#include <CL/sycl.hpp>
+#if __has_include(<sycl/sycl.hpp>)
+  #include <sycl/sycl.hpp>
+#else
+  #include <CL/sycl.hpp>
+#endif
 
-using namespace cl::sycl;
+using namespace sycl;
 
 using SyclBuffer = buffer<double, 1>;
 
