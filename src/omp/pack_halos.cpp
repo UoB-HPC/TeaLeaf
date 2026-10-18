@@ -5,9 +5,8 @@
 // Packs left data into buffer.
 void pack_left(const int x, const int y, const int depth, const int halo_depth, const double *field, double *buffer, int offset,
                bool is_offload) {
-  const int y_inner = y - 2 * halo_depth;
 #ifdef OMP_TARGET
-  #pragma omp target teams distribute parallel for simd collapse(2) if (is_offload) // map(from : buffer[ : depth * y_inner])
+  #pragma omp target teams distribute parallel for simd collapse(2) if (is_offload)
 #else
   #pragma omp parallel for
 #endif
@@ -22,10 +21,8 @@ void pack_left(const int x, const int y, const int depth, const int halo_depth, 
 // Packs right data into buffer.
 void pack_right(const int x, const int y, const int depth, const int halo_depth, const double *field, double *buffer, int offset,
                 bool is_offload) {
-  const int y_inner = y - 2 * halo_depth;
-
 #ifdef OMP_TARGET
-  #pragma omp target teams distribute parallel for simd collapse(2) if (is_offload) // map(from : buffer[ : depth * y_inner])
+  #pragma omp target teams distribute parallel for simd collapse(2) if (is_offload)
 #else
   #pragma omp parallel for
 #endif
@@ -76,9 +73,8 @@ void pack_bottom(const int x, const int y, const int depth, const int halo_depth
 // Unpacks left data from buffer.
 void unpack_left(const int x, const int y, const int depth, const int halo_depth, double *field, const double *buffer, int offset,
                  bool is_offload) {
-  const int y_inner = y - 2 * halo_depth;
 #ifdef OMP_TARGET
-  #pragma omp target teams distribute parallel for simd collapse(2) if (is_offload) // map(to : buffer[ : depth * y_inner])
+  #pragma omp target teams distribute parallel for simd collapse(2) if (is_offload)
 #else
   #pragma omp parallel for
 #endif
@@ -93,9 +89,8 @@ void unpack_left(const int x, const int y, const int depth, const int halo_depth
 // Unpacks right data from buffer.
 void unpack_right(const int x, const int y, const int depth, const int halo_depth, double *field, const double *buffer, int offset,
                   bool is_offload) {
-  const int y_inner = y - 2 * halo_depth;
 #ifdef OMP_TARGET
-  #pragma omp target teams distribute parallel for simd collapse(2) if (is_offload) // map(to : buffer[ : depth * y_inner])
+  #pragma omp target teams distribute parallel for simd collapse(2) if (is_offload)
 #else
   #pragma omp parallel for
 #endif

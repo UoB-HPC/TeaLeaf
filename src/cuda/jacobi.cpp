@@ -44,19 +44,9 @@ __global__ void jacobi_init(const int x_inner, const int y_inner, const int halo
 
   if (row == 0 || col == 0) return;
 
-  double density_center;
-  double density_left;
-  double density_down;
-
-  if (coefficient == CONDUCTIVITY) {
-    density_center = density[index];
-    density_left = density[index - 1];
-    density_down = density[index - x];
-  } else if (coefficient == RECIP_CONDUCTIVITY) {
-    density_center = 1.0 / density[index];
-    density_left = 1.0 / density[index - 1];
-    density_down = 1.0 / density[index - x];
-  }
+  const double density_center = coefficient == CONDUCTIVITY ? density[index] : 1.0 / density[index];
+  const double density_left = coefficient == CONDUCTIVITY ? density[index - 1] : 1.0 / density[index - 1];
+  const double density_down = coefficient == CONDUCTIVITY ? density[index - x] : 1.0 / density[index - x];
 
   kx[index] = rx * (density_left + density_center) / (2.0 * density_left * density_center);
   ky[index] = ry * (density_down + density_center) / (2.0 * density_down * density_center);
@@ -72,6 +62,10 @@ __global__ void jacobi_copy_u(const int x_inner, const int y_inner, const double
 
 // Jacobi solver kernels
 void run_jacobi_init(Chunk *chunk, Settings &settings, double rx, double ry) {
+  if (settings.coefficient != CONDUCTIVITY && settings.coefficient != RECIP_CONDUCTIVITY) {
+    die(__LINE__, __FILE__, "Coefficient %d is not valid.\n", settings.coefficient);
+  }
+
   KERNELS_START(2 * settings.halo_depth);
   jacobi_init<<<num_blocks, BLOCK_SIZE>>>(x_inner, y_inner, settings.halo_depth, chunk->density, chunk->energy, rx, ry, chunk->kx,
                                           chunk->ky, chunk->u0, chunk->u, settings.coefficient);
